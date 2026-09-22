@@ -1,0 +1,266 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+/* ===== V1 开始页 ===== */
+.start-page {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, #eaf6ff 0%, #f4f0ff 100%);
+  font-family: system-ui, sans-serif;
+}
+
+.start-card {
+  text-align: center;
+  padding: 48px 64px;
+}
+
+.start-title {
+  font-size: 56px;
+  font-weight: 700;
+  color: #1f2937;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+}
+
+.start-en {
+  font-size: 20px;
+  color: #2563eb;
+  margin-bottom: 6px;
+}
+
+.start-cn {
+  font-size: 16px;
+  color: #6b7280;
+  margin-bottom: 40px;
+}
+
+.start-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+}
+
+.btn-primary {
+  padding: 14px 40px;
+  font-size: 18px;
+  border: none;
+  border-radius: 12px;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.1s ease;
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.btn-disabled {
+  padding: 12px 28px;
+  font-size: 15px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* ===== V2 主编辑页 ===== */
+.editor {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, sans-serif;
+}
+
+.editor-topbar {
+  height: 52px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: #1f2937;
+  color: #fff;
+}
+
+.editor-logo {
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.editor-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.topbar-btn {
+  padding: 6px 16px;
+  font-size: 14px;
+  border: 1px solid #4b5563;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+
+.topbar-btn:hover {
+  background: #374151;
+}
+
+.editor-hint {
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.editor-scene {
+  flex: 1;
+  position: relative;
+}
+
+.editor-message {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  background: rgba(31, 41, 55, 0.92);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  pointer-events: none;
+  max-width: 80%;
+}
+
+.editor-input {
+  position: absolute;
+  right: 20px;
+  top: 72px;
+  display: flex;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 10px;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.editor-input-field {
+  width: 260px;
+  padding: 10px 12px;
+  font-size: 15px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  outline: none;
+}
+
+.editor-input-field:focus {
+  border-color: #2563eb;
+}
+
+.editor-input-btn {
+  padding: 0 18px;
+  font-size: 15px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+}
+
+.editor-input-btn:hover {
+  background: #1d4ed8;
+}
+
+/* ===== 帮助弹窗 ===== */
+.help-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.help-card {
+  width: 480px;
+  max-width: 90%;
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+.help-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  background: #1f2937;
+  color: #fff;
+}
+
+.help-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.help-close {
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.help-body {
+  padding: 22px 24px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #374151;
+}
+
+.help-lead {
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 14px;
+}
+
+.help-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.help-list code {
+  background: #f3f4f6;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 13px;
+  color: #2563eb;
+}
+
+.help-tip {
+  margin-top: 14px;
+  color: #6b7280;
+  font-size: 14px;
+}
