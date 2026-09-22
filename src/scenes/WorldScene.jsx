@@ -30,9 +30,10 @@ export default function WorldScene({ sceneRef }) {
     camera.lookAt(0, 0, 0)
 
     // 3. 渲染器：把场景画到屏幕上（WebGL，兼容集显）
-    const renderer = new THREE.WebGLRenderer({ antialias: true })
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
     renderer.setSize(mount.clientWidth, mount.clientHeight)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    // 限制像素比上限 1.5：高分辨率屏上降低首帧 GPU 压力，肉眼几乎无差，但加载明显变快
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
     mount.appendChild(renderer.domElement)
 
     // 4. 光照
@@ -100,9 +101,10 @@ export default function WorldScene({ sceneRef }) {
     }
 
     // TransformControls：移动/旋转/缩放三合一（Roblox 式 gizmo）
+    // 注意：TransformControls 本身不能 scene.add()，要用 getHelper() 把它的可视 gizmo 加进场景
     const transform = new TransformControls(camera, renderer.domElement)
     transform.setSize(0.9)
-    scene.add(transform)
+    scene.add(transform.getHelper())
     transform.addEventListener('dragging-changed', (event) => {
       // 拖动 gizmo 时禁用相机旋转，避免打架
       controls.enabled = !event.value
@@ -276,6 +278,8 @@ export default function WorldScene({ sceneRef }) {
       controls.update()
       renderer.render(scene, camera)
     }
+    // 先立刻同步画一帧，避免进入编辑页后首帧要等 requestAnimationFrame 才出现画面
+    renderer.render(scene, camera)
     animate()
 
     // 10. 窗口大小变化时自适应
@@ -292,7 +296,15 @@ export default function WorldScene({ sceneRef }) {
       window.removeEventListener('resize', onResize)
       window.removeEventListener('keydown', onKeyDown)
       renderer.domElement.removeEventListener('click', onClick)
-      transform.dispose()
+      scene.remove(transform.getHelper())
+      transform.detach()
+      // three 0.169 的 TransformControls.dispose() 有已知 bug：内部调用了不存在的
+      // this.traverse（旧版残留代码），直接调用会崩溃导致白屏。
+      // 这里手动释放 gizmo 的几何体和材质，代替那个有 bug 的 dispose。
+      transform.getHelper().traverse((child) => {
+        if (child.geometry) child.geometry.dispose()
+        if (child.material) child.material.dispose()
+      })
       controls.dispose()
       renderer.dispose()
       mount.removeChild(renderer.domElement)
