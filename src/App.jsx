@@ -23,6 +23,27 @@ function EditorPage() {
   const [showHelp, setShowHelp] = useState(false)
   const [candidates, setCandidates] = useState([])
   const [selected, setSelected] = useState(null)
+  const [sideWidth, setSideWidth] = useState(280) // 右侧栏宽度，可拖动分隔线调整
+
+  // 拖动分隔线调整侧栏宽度（200 ~ 520px）
+  function startResize(e) {
+    e.preventDefault()
+    const startX = e.clientX
+    const startWidth = sideWidth
+    function onMove(ev) {
+      // 侧栏在右侧，往左拖（x 变小）→ 侧栏变宽
+      const next = startWidth + (startX - ev.clientX)
+      setSideWidth(Math.min(520, Math.max(200, next)))
+    }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      document.body.classList.remove('resizing')
+    }
+    document.body.classList.add('resizing')
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }
 
   function handleGenerate() {
     const text = input.trim()
@@ -135,7 +156,9 @@ function EditorPage() {
           <WorldScene2D sceneRef={sceneRef} />
         </div>
 
-        <div className="editor-side">
+        <div className="editor-resizer" onMouseDown={startResize} title="拖动调整宽度 · Drag to resize" />
+
+        <div className="editor-side" style={{ width: sideWidth }}>
           <div className="editor-input">
             <input
               className="editor-input-field"
