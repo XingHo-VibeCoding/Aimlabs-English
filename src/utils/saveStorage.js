@@ -33,6 +33,30 @@ export function readSave() {
   }
 }
 
+/** 写入真实存档：把编辑器场景里的物体 + 元数据存进 localStorage */
+export function writeSave(items, worldName) {
+  const data = {
+    version: 1,
+    worldName: worldName || '我的世界 / My World',
+    savedAt: new Date().toISOString(),
+    items: items.map((it) => ({
+      id: it.userData.id || ('w' + Math.random().toString(36).slice(2, 8)),
+      phrase: it.userData.phrase || '',
+      type: it.userData.type,
+      color: it.userData.color,
+      scale: it.userData.scale,
+      x: Math.round(it.x * 10) / 10,
+      y: Math.round(it.y * 10) / 10,
+    })),
+  }
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data))
+    return { ok: true }
+  } catch {
+    return { ok: false, reason: 'storage-full' }
+  }
+}
+
 /** 清空存档（PRD E6「清空重开」、AC-33） */
 export function clearSave() {
   try {

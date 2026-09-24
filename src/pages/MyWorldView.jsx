@@ -15,12 +15,15 @@ const STATUSES = [
   { key: 'error', label: '出错 Error' },
 ]
 
-export default function MyWorldView() {
+export default function MyWorldView({ onBack }) {
   const [status, setStatus] = useState('success')
 
   return (
     <div className="myworld">
       <div className="myworld-header">
+        <button className="topbar-btn myworld-back" onClick={onBack} title="回到主界面 · Back to home">
+          ← 主界面
+        </button>
         <h1 className="myworld-title">我的世界 · My World</h1>
         <p className="myworld-sub">用英文造过的东西，都在这里 · Everything you've built with English lives here</p>
       </div>

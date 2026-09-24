@@ -3,20 +3,39 @@ import WorldScene2D from './scenes/WorldScene2D.jsx'
 import HomePage from './pages/HomePage.jsx'
 import MyWorldView from './pages/MyWorldView.jsx'
 import { buildCandidates, typeLabel, colorLabel } from './ai/dictionary.js'
+import { writeSave } from './utils/saveStorage.js'
+import { readFontScale, writeFontScale, FONT_SCALE_MIN, FONT_SCALE_MAX } from './utils/fontScale.js'
 
 export default function App() {
   const [view, setView] = useState('start')
+  const [fontScale, setFontScale] = useState(readFontScale)
+
+  // 字号缩放同步到根元素，供 CSS 使用（界面文字用 rem/em 会随它缩放）
+  useEffect(() => {
+    document.documentElement.style.setProperty('--ui-scale', fontScale)
+  }, [fontScale])
+
+  function handleFontScale(v) {
+    setFontScale(v)
+    writeFontScale(v)
+  }
 
   if (view === 'start') {
     return <HomePage onStart={() => setView('editor')} onWorld={() => setView('world')} />
   }
   if (view === 'world') {
-    return <MyWorldView />
+    return <MyWorldView onBack={() => setView('start')} />
   }
-  return <EditorPage />
+  return (
+    <EditorPage
+      onBack={() => setView('start')}
+      fontScale={fontScale}
+      onFontScale={handleFontScale}
+    />
+  )
 }
 
-function EditorPage() {
+function EditorPage({ onBack, fontScale, onFontScale }) {
   const sceneRef = useRef(null)
   const [input, setInput] = useState('')
   const [message, setMessage] = useState('')
@@ -24,6 +43,7 @@ function EditorPage() {
   const [candidates, setCandidates] = useState([])
   const [selected, setSelected] = useState(null)
   const [sideWidth, setSideWidth] = useState(280) // 右侧栏宽度，可拖动分隔线调整
+  const [saveToast, setSaveToast] = useState('') // 保存提醒文字，空=不显示
 
   // 拖动分隔线调整侧栏宽度（200 ~ 520px）
   function startResize(e) {
@@ -106,6 +126,22 @@ function EditorPage() {
     }
   }
 
+  // 真保存：把场景里的物体写进 localStorage，弹「已保存✓」提醒，2 秒后自动消失
+  function handleSave() {
+    if (!sceneRef.current) {
+      setSaveToast('还没有场景，无法保存')
+      return
+    }
+    const objects = sceneRef.current.getObjects ? sceneRef.current.getObjects() : []
+    const result = writeSave(objects)
+    if (result.ok) {
+      setSaveToast('已保存 ✓ Saved')
+    } else {
+      setSaveToast('保存失败，存储空间可能不足')
+    }
+    setTimeout(() => setSaveToast(''), 2000)
+  }
+
   function changeColor(hex) {
     if (sceneRef.current && selected) {
       sceneRef.current.updateSelected({ color: hex })
@@ -137,14 +173,33 @@ function EditorPage() {
   return (
     <div className="editor">
       <header className="editor-topbar">
+        <button className="topbar-btn" onClick={onBack} title="回到主界面 · Back to home">
+          ← 主界面
+        </button>
         <span className="editor-logo">WordWorld</span>
         <div className="editor-topbar-right">
+          <button className="topbar-btn" onClick={handleSave}>
+            保存 · Save
+          </button>
           <button className="topbar-btn" onClick={() => setShowHelp(true)}>
             帮助 · Help
           </button>
-          <span className="editor-hint">WASD/方向键移动 · 输入英文造物 · 点击物体编辑</span>
+          <label className="font-scale" title="调整字体大小 · Adjust text size">
+            <span className="font-scale-label">Aa</span>
+            <input
+              className="font-scale-slider"
+              type="range"
+              min={FONT_SCALE_MIN}
+              max={FONT_SCALE_MAX}
+              step={0.05}
+              value={fontScale}
+              onChange={(e) => onFontScale(parseFloat(e.target.value))}
+            />
+          </label>
         </div>
       </header>
+
+      {saveToast && <div className="save-toast">{saveToast}</div>}
 
       <div className="editor-main">
         <div
@@ -153,12 +208,13 @@ function EditorPage() {
           onDragOver={onSceneDragOver}
           onDragLeave={onSceneDragLeave}
         >
-          <WorldScene2D sceneRef={sceneRef} />
+          <WorldScene2D sceneRef={sceneRef} fontScale={fontScale} />
         </div>
 
         <div className="editor-resizer" onMouseDown={startResize} title="拖动调整宽度 · Drag to resize" />
 
         <div className="editor-side" style={{ width: sideWidth }}>
+          <span className="editor-hint">WASD/方向键移动 · 输入英文造物 · 点击物体编辑</span>
           <div className="editor-input">
             <input
               className="editor-input-field"

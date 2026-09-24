@@ -263,9 +263,11 @@ function drawPlayer(ctx, p, time) {
   ctx.restore()
 }
 
-export default function WorldScene2D({ sceneRef }) {
+export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
   const canvasRef = useRef(null)
   const stateRef = useRef(null)
+  const fontScaleRef = useRef(fontScale)
+  fontScaleRef.current = fontScale
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -428,6 +430,15 @@ export default function WorldScene2D({ sceneRef }) {
           }
           return state.selected.userData
         },
+        // 返回场景里所有物体的快照（供保存用）
+        getObjects() {
+          return state.objects.map((o) => ({
+            userData: { ...o.userData },
+            x: o.x,
+            y: o.y,
+            scale: o.scale,
+          }))
+        },
       }
     }
 
@@ -554,15 +565,18 @@ export default function WorldScene2D({ sceneRef }) {
         const it = state.nearInteractable
         const ix = it.x * TILE
         const iy = it.y * TILE - 34
+        const fs = fontScaleRef.current // 随全局字号缩放
+        const bubbleR = 11 * fs
+        const bubbleY = iy + 6 * fs
         ctx.fillStyle = 'rgba(0,0,0,0.65)'
         ctx.beginPath()
-        ctx.arc(ix + TILE / 2, iy + 6, 11, 0, Math.PI * 2)
+        ctx.arc(ix + TILE / 2, bubbleY, bubbleR, 0, Math.PI * 2)
         ctx.fill()
         ctx.fillStyle = '#fff'
-        ctx.font = 'bold 14px system-ui, sans-serif'
+        ctx.font = `bold ${Math.round(14 * fs)}px system-ui, sans-serif`
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
-        ctx.fillText('E', ix + TILE / 2, iy + 6)
+        ctx.fillText('E', ix + TILE / 2, bubbleY)
       }
       ctx.restore()
     }

@@ -21,6 +21,11 @@
   box-sizing: border-box;
 }
 
+/* 全局字号缩放系数（由 App 通过 JS 设置，范围 0.8~1.6） */
+:root {
+  --ui-scale: 1;
+}
+
 html,
 body,
 #root {
@@ -134,6 +139,7 @@ body {
   display: flex;
   flex-direction: column;
   font-family: 'Pixel-CN', 'Pixel', system-ui, sans-serif;
+  zoom: var(--ui-scale, 1);
 }
 
 .editor-topbar {
@@ -141,7 +147,7 @@ body {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 16px;
   padding: 0 20px;
   background: #1f2937;
   color: #fff;
@@ -150,12 +156,13 @@ body {
 .editor-logo {
   font-weight: 700;
   font-size: 18px;
+  margin: 0 auto 0 4px;
 }
 
 .editor-topbar-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .topbar-btn {
@@ -166,15 +173,58 @@ body {
   background: transparent;
   color: #fff;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .topbar-btn:hover {
   background: #374151;
 }
 
+/* 字号调节滑条 */
+.font-scale {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #cbd5e1;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.font-scale-label {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.font-scale-slider {
+  width: 90px;
+  accent-color: #60a5fa;
+  cursor: pointer;
+}
+
+/* 保存提醒 toast：右上角浮出，2 秒后自动消失 */
+.save-toast {
+  position: fixed;
+  top: 64px;
+  right: 20px;
+  z-index: 50;
+  padding: 10px 18px;
+  background: #059669;
+  color: #fff;
+  font-size: 14px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  animation: toast-in 0.2s ease-out;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .editor-hint {
   font-size: 13px;
-  color: #cbd5e1;
+  color: #6b7280;
+  margin-bottom: 4px;
 }
 
 .editor-main {
@@ -556,10 +606,21 @@ body.resizing {
   flex-direction: column;
   font-family: 'Pixel-CN', 'Pixel', system-ui, sans-serif;
   background: #f8fafc;
+  zoom: var(--ui-scale, 1);
 }
 
 .myworld-header {
   padding: 24px 32px 12px;
+}
+
+.myworld-back {
+  border-color: #d1d5db;
+  color: #1f2937;
+  margin-bottom: 12px;
+}
+
+.myworld-back:hover {
+  background: #e5e7eb;
 }
 
 .myworld-title {
@@ -1063,9 +1124,11 @@ body.resizing {
   .hp-links { flex-direction: column; gap: 10px; margin-top: 18px; }
   .hp-mountains { height: 38%; }
   .hp-demo { left: 10px; justify-content: center; }
-  /* 编辑器顶栏的长提示在窄屏会挤爆 52px 高的顶栏，窄屏隐藏 */
+  /* 编辑器顶栏：窄屏收紧边距、缩短按钮内边距，字号滑条变窄 */
   .editor-hint { display: none; }
-  .editor-topbar { padding: 0 12px; }
+  .editor-topbar { padding: 0 12px; gap: 8px; }
+  .topbar-btn { padding: 6px 10px; font-size: 13px; }
+  .font-scale-slider { width: 60px; }
   /* 我的世界页：窄屏收紧 header 边距、卡片墙降为单列 */
   .myworld-header { padding: 18px 16px 8px; }
   .myworld-body { padding: 8px 16px 20px; }
