@@ -1,3 +1,20 @@
+/* ===== 像素字体（缝合像素字体 Fusion Pixel，SIL OFL 1.1 可免费商用） ===== */
+/* 英文用 latin 字形、中文用 zh_hans 字形，两份 fallback 保证中英混排都清晰 */
+@font-face {
+  font-family: 'Pixel';
+  src: url('../../assets/fonts/fusion-pixel-12px-proportional-latin.otf.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Pixel-CN';
+  src: url('../../assets/fonts/fusion-pixel-12px-proportional-zh_hans.otf.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -9,6 +26,17 @@ body,
 #root {
   width: 100%;
   height: 100%;
+}
+
+/* 全站统一字体：像素字体优先，缺字回退系统字体（保证中文覆盖） */
+body {
+  font-family: 'Pixel-CN', 'Pixel', system-ui, sans-serif;
+}
+
+/* 键盘焦点态：Tab 导航时给所有可交互元素一个清晰的可见轮廓（无障碍） */
+:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
 }
 
 /* 首页背景带宽 200% 向左平移，从根上杜绝横向滚动条（防溢出） */
@@ -24,7 +52,7 @@ body {
   align-items: center;
   justify-content: center;
   background: linear-gradient(160deg, #eaf6ff 0%, #f4f0ff 100%);
-  font-family: system-ui, sans-serif;
+  font-family: 'Pixel-CN', 'Pixel', system-ui, sans-serif;
 }
 
 .start-card {
@@ -105,7 +133,7 @@ body {
   height: 100%;
   display: flex;
   flex-direction: column;
-  font-family: system-ui, sans-serif;
+  font-family: 'Pixel-CN', 'Pixel', system-ui, sans-serif;
 }
 
 .editor-topbar {
@@ -174,9 +202,8 @@ body {
   max-height: 100%;
 }
 
-/* 右侧：边栏 */
+/* 右侧：边栏（宽度由内联 style 控制，可拖动分隔线调整） */
 .editor-side {
-  width: 280px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -185,6 +212,24 @@ body {
   background: #f8fafc;
   border-left: 1px solid #e5e7eb;
   overflow-y: auto;
+}
+
+/* 拖动分隔线 */
+.editor-resizer {
+  width: 6px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: #e5e7eb;
+  transition: background 0.1s;
+}
+.editor-resizer:hover {
+  background: #2563eb;
+}
+
+/* 拖动时全局禁用文字选中、鼠标保持缩放箭头 */
+body.resizing {
+  cursor: col-resize;
+  user-select: none;
 }
 
 .editor-input {
@@ -299,7 +344,7 @@ body {
 
 .candidate-scale {
   font-size: 12px;
-  color: #9ca3af;
+  color: #6b7280;
 }
 
 /* 属性面板 */
@@ -509,7 +554,7 @@ body {
   height: 100%;
   display: flex;
   flex-direction: column;
-  font-family: system-ui, sans-serif;
+  font-family: 'Pixel-CN', 'Pixel', system-ui, sans-serif;
   background: #f8fafc;
 }
 
@@ -546,7 +591,7 @@ body {
 /* 单张卡片 */
 .world-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 14px;
   padding: 16px;
   background: #fff;
@@ -597,8 +642,10 @@ body {
 
 .world-card-time {
   font-size: 12px;
-  color: #9ca3af;
+  color: #6b7280;
   flex-shrink: 0;
+  line-height: 1.5;
+  padding-top: 3px;
 }
 
 /* 状态占位框（loading / empty / error 共用） */
@@ -621,7 +668,7 @@ body {
 
 .state-hint {
   font-size: 13px;
-  color: #9ca3af;
+  color: #6b7280;
 }
 
 .state-error {
@@ -669,10 +716,16 @@ body {
   background: #fff;
   color: #374151;
   cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
 
 .state-btn:hover {
-  background: #f3f4f6;
+  background: #eef2ff;
+  border-color: #93c5fd;
+}
+
+.state-btn:active {
+  background: #dbeafe;
 }
 
 .state-btn.active {
@@ -681,13 +734,18 @@ body {
   color: #fff;
 }
 
+.state-btn.active:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
 /* ===== 首页 HomePage（星露谷风格，Day 8） ===== */
 .hp {
   position: relative;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  font-family: system-ui, sans-serif;
+  font-family: 'Pixel-CN', 'Pixel', system-ui, sans-serif;
 }
 
 /* --- 天空：深夜 → 黎明地平线（参考图配色） --- */
@@ -858,9 +916,9 @@ body {
   margin: 14px 0 4px;
 }
 .hp-slogan-cn {
-  color: #e3f2fd;
+  color: #ffffff;
   font-size: clamp(13px, 2vw, 16px);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.65);
   margin: 0 0 26px;
 }
 
@@ -948,15 +1006,20 @@ body {
   margin-top: 26px;
 }
 .hp-link {
-  background: none;
+  background: rgba(62, 39, 35, 0.72);
   border: none;
-  color: #bbdefb;
+  color: #ffffff;
   font-size: 14px;
   cursor: pointer;
-  text-decoration: underline dotted;
-  text-underline-offset: 4px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  text-decoration: none;
+  transition: background 0.1s;
 }
-.hp-link:hover { color: #fff; }
+.hp-link:hover {
+  color: #ffffff;
+  background: rgba(62, 39, 35, 0.88);
+}
 .hp-vocab-tip {
   margin-top: 10px;
   font-size: 12px;
@@ -1000,4 +1063,12 @@ body {
   .hp-links { flex-direction: column; gap: 10px; margin-top: 18px; }
   .hp-mountains { height: 38%; }
   .hp-demo { left: 10px; justify-content: center; }
+  /* 编辑器顶栏的长提示在窄屏会挤爆 52px 高的顶栏，窄屏隐藏 */
+  .editor-hint { display: none; }
+  .editor-topbar { padding: 0 12px; }
+  /* 我的世界页：窄屏收紧 header 边距、卡片墙降为单列 */
+  .myworld-header { padding: 18px 16px 8px; }
+  .myworld-body { padding: 8px 16px 20px; }
+  .world-grid { grid-template-columns: 1fr; gap: 12px; }
+  .state-switcher { padding: 12px 16px; }
 }
