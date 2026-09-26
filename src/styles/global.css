@@ -242,6 +242,8 @@ body {
   background: #1a1a2e;
   overflow: auto;
   padding: 16px;
+  /* 反向缩放：抵消 .editor 的整体 zoom，调字号时游戏页面大小保持不变 */
+  zoom: calc(1 / var(--ui-scale, 1));
 }
 
 .world-canvas {

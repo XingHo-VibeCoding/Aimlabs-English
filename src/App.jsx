@@ -325,7 +325,7 @@ function HelpModal({ onClose }) {
             <li><b>2. 造东西</b> · 在上方输入框写英文（例如 <code>a red tree</code>），按回车，候选会出现在右侧。</li>
             <li><b>3. 放置</b> · 把右侧候选卡片拖到场景中，松手放置。</li>
             <li><b>4. 编辑</b> · 点击场景中的物体，右侧出现属性面板，可改颜色、大小、删除。</li>
-            <li><b>5. 认得的词</b> · 颜色：red / blue / green / pink… 大小：big / tiny / giant… 东西：tree / house / cat / dog / ball / rock…</li>
+            <li><b>5. 认得的词</b> · 颜色：red / blue / green / pink… 大小：big / tiny / giant… 东西：tree / house / cat / dog / ball / rock / rabbit / bird / fish / bear / snake / butterfly / apple / cake / ice cream / pumpkin / chair / table / bed / bench / mailbox / sun / moon / star / snowman / rainbow / cactus…</li>
           </ul>
           <p className="help-tip">写错了没关系，改一改再试一次就行。</p>
         </div>

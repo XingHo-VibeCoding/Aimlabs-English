@@ -194,6 +194,155 @@ function drawObject(ctx, obj, time) {
       }
       break
     }
+    case 'rabbit': {
+      // 兔子：长耳朵 + 圆身
+      ctx.fillStyle = c; ctx.fillRect(-9, -10, 18, 10)
+      ctx.beginPath(); ctx.arc(0, -14, 7, 0, Math.PI * 2); ctx.fill()
+      ctx.fillStyle = c
+      ctx.fillRect(-5, -26, 4, 12); ctx.fillRect(1, -26, 4, 12) // 两只竖耳
+      ctx.fillStyle = '#fff'
+      ctx.fillRect(-4, -24, 2, 6); ctx.fillRect(2, -24, 2, 6) // 耳内白
+      ctx.fillStyle = '#212121'
+      ctx.fillRect(-3, -15, 2, 2); ctx.fillRect(1, -15, 2, 2) // 眼
+      break
+    }
+    case 'bird': {
+      ctx.fillStyle = c; ctx.fillRect(-8, -8, 16, 8)
+      ctx.beginPath(); ctx.arc(2, -12, 6, 0, Math.PI * 2); ctx.fill()
+      ctx.fillStyle = '#ff9800'
+      ctx.beginPath(); ctx.moveTo(8, -12); ctx.lineTo(13, -12); ctx.lineTo(8, -9); ctx.closePath(); ctx.fill() // 喙
+      ctx.fillStyle = '#212121'; ctx.fillRect(3, -13, 2, 2)
+      ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(-8, -8); ctx.lineTo(-14, -12); ctx.lineTo(-8, -5); ctx.closePath(); ctx.fill() // 尾
+      break
+    }
+    case 'fish': {
+      ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(0, -8, 11, 6, 0, 0, Math.PI * 2); ctx.fill()
+      ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(11, -8); ctx.lineTo(17, -12); ctx.lineTo(17, -4); ctx.closePath(); ctx.fill() // 尾
+      ctx.fillStyle = '#212121'; ctx.fillRect(5, -10, 2, 2) // 眼
+      break
+    }
+    case 'bear': {
+      ctx.fillStyle = c; ctx.fillRect(-11, -12, 22, 12)
+      ctx.beginPath(); ctx.arc(0, -17, 8, 0, Math.PI * 2); ctx.fill()
+      ctx.fillStyle = c; ctx.beginPath(); ctx.arc(-7, -22, 3, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(7, -22, 3, 0, Math.PI * 2); ctx.fill() // 圆耳
+      ctx.fillStyle = '#212121'; ctx.fillRect(-3, -18, 2, 2); ctx.fillRect(1, -18, 2, 2)
+      break
+    }
+    case 'snake': {
+      ctx.strokeStyle = c; ctx.lineWidth = 6; ctx.lineCap = 'round'
+      ctx.beginPath(); ctx.moveTo(-10, -4); ctx.quadraticCurveTo(-4, -10, 0, -4); ctx.quadraticCurveTo(4, 2, 10, -4); ctx.stroke()
+      ctx.fillStyle = c; ctx.beginPath(); ctx.arc(11, -4, 4, 0, Math.PI * 2); ctx.fill() // 头
+      ctx.fillStyle = '#212121'; ctx.fillRect(12, -5, 2, 2) // 眼
+      break
+    }
+    case 'butterfly': {
+      ctx.fillStyle = c
+      ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(-8, -16); ctx.lineTo(-8, -4); ctx.closePath(); ctx.fill() // 左翅
+      ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(8, -16); ctx.lineTo(8, -4); ctx.closePath(); ctx.fill() // 右翅
+      ctx.fillStyle = '#5d4037'; ctx.fillRect(-1, -14, 2, 10) // 身体
+      break
+    }
+    case 'apple': {
+      ctx.fillStyle = c; ctx.beginPath(); ctx.arc(0, -8, 9, 0, Math.PI * 2); ctx.fill()
+      ctx.fillStyle = '#5d4037'; ctx.fillRect(-1, -20, 2, 6) // 梗
+      ctx.fillStyle = '#4caf50'; ctx.beginPath(); ctx.arc(-4, -20, 4, 0, Math.PI * 2); ctx.fill() // 叶
+      break
+    }
+    case 'cake': {
+      ctx.fillStyle = c; ctx.fillRect(-12, -14, 24, 14) // 糕体
+      ctx.fillStyle = '#fff'; ctx.fillRect(-12, -18, 24, 4) // 奶油层
+      ctx.fillStyle = '#ff4d4d'; ctx.fillRect(-2, -22, 4, 4) // 顶部装饰
+      break
+    }
+    case 'icecream': {
+      ctx.fillStyle = '#f3a63b'; ctx.beginPath(); ctx.moveTo(0, 6); ctx.lineTo(-7, -6); ctx.lineTo(7, -6); ctx.closePath(); ctx.fill() // 蛋筒
+      ctx.fillStyle = c; ctx.beginPath(); ctx.arc(0, -10, 8, 0, Math.PI * 2); ctx.fill() // 冰球
+      break
+    }
+    case 'pumpkin': {
+      ctx.fillStyle = '#ff9800'; ctx.beginPath(); ctx.arc(0, -8, 10, 0, Math.PI * 2); ctx.fill()
+      ctx.fillStyle = '#5d4037'; ctx.fillRect(-1, -20, 2, 4) // 蒂
+      ctx.fillStyle = '#212121'
+      ctx.fillRect(-4, -9, 2, 2); ctx.fillRect(2, -9, 2, 2); ctx.fillRect(-1, -5, 3, 2) // 鬼脸
+      break
+    }
+    case 'chair': {
+      ctx.fillStyle = c; ctx.fillRect(-8, -12, 16, 3) // 座
+      ctx.fillStyle = c; ctx.fillRect(-8, -22, 3, 10); ctx.fillRect(5, -22, 3, 10) // 靠背竖杆
+      ctx.fillRect(-8, -22, 16, 3) // 靠背横杆
+      ctx.fillRect(-8, -8, 3, 8); ctx.fillRect(5, -8, 3, 8) // 腿
+      break
+    }
+    case 'table': {
+      ctx.fillStyle = c; ctx.fillRect(-14, -10, 28, 4) // 桌面
+      ctx.fillRect(-10, -8, 4, 8); ctx.fillRect(6, -8, 4, 8) // 腿
+      break
+    }
+    case 'bed': {
+      ctx.fillStyle = c; ctx.fillRect(-14, -10, 28, 10) // 床体
+      ctx.fillStyle = '#fff'; ctx.fillRect(-10, -12, 8, 4) // 枕头
+      ctx.fillStyle = c; ctx.fillRect(-14, -12, 28, 2) // 床头
+      break
+    }
+    case 'bench': {
+      ctx.fillStyle = c; ctx.fillRect(-14, -8, 28, 4) // 座板
+      ctx.fillRect(-12, -6, 3, 6); ctx.fillRect(9, -6, 3, 6) // 腿
+      break
+    }
+    case 'mailbox': {
+      ctx.fillStyle = '#8d6e63'; ctx.fillRect(-2, -16, 4, 16) // 柱
+      ctx.fillStyle = c; ctx.fillRect(-7, -22, 14, 8) // 箱体
+      ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(-7, -22); ctx.lineTo(0, -28); ctx.lineTo(7, -22); ctx.closePath(); ctx.fill() // 顶
+      break
+    }
+    case 'sun': {
+      ctx.fillStyle = '#ffd54f'; ctx.beginPath(); ctx.arc(0, -8, 8, 0, Math.PI * 2); ctx.fill()
+      ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 2
+      for (let a = 0; a < 8; a++) { // 光芒
+        const ang = a * Math.PI / 4
+        ctx.beginPath(); ctx.moveTo(Math.cos(ang) * 10, -8 + Math.sin(ang) * 10); ctx.lineTo(Math.cos(ang) * 13, -8 + Math.sin(ang) * 13); ctx.stroke()
+      }
+      break
+    }
+    case 'moon': {
+      ctx.fillStyle = '#fff59d'; ctx.beginPath(); ctx.arc(0, -8, 9, 0, Math.PI * 2); ctx.fill()
+      ctx.fillStyle = '#1a1a2e'; ctx.beginPath(); ctx.arc(4, -11, 7, 0, Math.PI * 2); ctx.fill() // 缺一块成月牙
+      break
+    }
+    case 'star': {
+      ctx.fillStyle = c
+      ctx.beginPath()
+      for (let i = 0; i < 5; i++) {
+        const ang = -Math.PI / 2 + i * 2 * Math.PI / 5
+        const ang2 = ang + Math.PI / 5
+        ctx.lineTo(Math.cos(ang) * 11, -8 + Math.sin(ang) * 11)
+        ctx.lineTo(Math.cos(ang2) * 4.5, -8 + Math.sin(ang2) * 4.5)
+      }
+      ctx.closePath(); ctx.fill()
+      break
+    }
+    case 'snowman': {
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill() // 底
+      ctx.beginPath(); ctx.arc(0, -10, 5, 0, Math.PI * 2); ctx.fill() // 中
+      ctx.beginPath(); ctx.arc(0, -17, 3.5, 0, Math.PI * 2); ctx.fill() // 头
+      ctx.fillStyle = '#212121'; ctx.fillRect(-1, -18, 2, 2); ctx.fillRect(1, -18, 2, 2) // 眼
+      ctx.fillStyle = '#ff9800'; ctx.fillRect(-1, -15, 2, 3) // 鼻子
+      break
+    }
+    case 'rainbow': {
+      const bands = ['#ff4d4d', '#ff9800', '#ffd54f', '#4caf50', '#42a5f5', '#ab47bc']
+      bands.forEach((col, i) => {
+        ctx.strokeStyle = col; ctx.lineWidth = 3
+        ctx.beginPath(); ctx.arc(0, 2, 12 - i * 2.5, Math.PI, 0); ctx.stroke()
+      })
+      break
+    }
+    case 'cactus': {
+      ctx.fillStyle = '#4caf50'; ctx.fillRect(-3, -22, 6, 22) // 主干
+      ctx.fillRect(-9, -16, 6, 4); ctx.fillRect(3, -16, 6, 4) // 横枝
+      ctx.fillRect(-8, -22, 4, 6); ctx.fillRect(4, -22, 4, 6) // 竖枝
+      break
+    }
     default: {
       ctx.fillStyle = c; ctx.fillRect(-8, -16, 16, 16)
     }
