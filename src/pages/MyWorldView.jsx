@@ -17,6 +17,12 @@ const STATUSES = [
 
 export default function MyWorldView({ onBack }) {
   const [status, setStatus] = useState('success')
+  const [selectedId, setSelectedId] = useState(null) // 当前选中的卡片 id（null = 无选中）
+
+  // 点击卡片：选中 / 取消（再点同一张 = 取消）
+  function toggleSelect(id) {
+    setSelectedId((prev) => (prev === id ? null : id))
+  }
 
   return (
     <div className="myworld">
@@ -54,7 +60,12 @@ export default function MyWorldView({ onBack }) {
         {status === 'success' && (
           <div className="world-grid">
             {MOCK_WORLD_ITEMS.map((item) => (
-              <WorldItemCard key={item.id} item={item} />
+              <WorldItemCard
+                key={item.id}
+                item={item}
+                selected={selectedId === item.id}
+                onClick={() => toggleSelect(item.id)}
+              />
             ))}
           </div>
         )}

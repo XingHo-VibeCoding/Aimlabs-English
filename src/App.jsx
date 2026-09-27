@@ -44,6 +44,25 @@ function EditorPage({ onBack, fontScale, onFontScale }) {
   const [selected, setSelected] = useState(null)
   const [sideWidth, setSideWidth] = useState(280) // 右侧栏宽度，可拖动分隔线调整
   const [saveToast, setSaveToast] = useState('') // 保存提醒文字，空=不显示
+  const [isFullscreen, setIsFullscreen] = useState(false) // 是否处于浏览器全屏
+
+  // 一键全屏：进入/退出浏览器全屏（用原生 Fullscreen API，零依赖）
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.()
+    } else {
+      document.exitFullscreen?.()
+    }
+  }
+
+  // 监听全屏状态变化（用户按 Esc 退出时也要同步按钮状态）
+  useEffect(() => {
+    function onFsChange() {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [])
 
   // 拖动分隔线调整侧栏宽度（200 ~ 520px）
   function startResize(e) {
@@ -184,6 +203,9 @@ function EditorPage({ onBack, fontScale, onFontScale }) {
           <button className="topbar-btn" onClick={() => setShowHelp(true)}>
             帮助 · Help
           </button>
+          <button className="topbar-btn" onClick={toggleFullscreen} title="全屏 · Fullscreen">
+            {isFullscreen ? '退出全屏 ✕' : '全屏 ⛶'}
+          </button>
           <label className="font-scale" title="调整字体大小 · Adjust text size">
             <span className="font-scale-label">Aa</span>
             <input
@@ -281,7 +303,7 @@ function EditorPage({ onBack, fontScale, onFontScale }) {
                 <span className="prop-label">大小 Size</span>
                 <div className="scale-controls">
                   <button className="scale-btn" onClick={() => changeScale(Math.max(0.3, selected.scale - 0.1))}>-</button>
-                  <span className="scale-value">{selected.scale.toFixed(1)}</span>
+                  <span className="scale-value" key={selected.scale.toFixed(1)}>{selected.scale.toFixed(1)}</span>
                   <button className="scale-btn" onClick={() => changeScale(Math.min(3, selected.scale + 0.1))}>+</button>
                 </div>
               </div>

@@ -452,8 +452,8 @@ body.resizing {
 }
 
 .swatch.active {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3);
+  border-color: #ffd54f;
+  box-shadow: 0 0 0 2px rgba(255, 213, 79, 0.35);
 }
 
 .scale-controls {
@@ -483,6 +483,13 @@ body.resizing {
   font-size: 14px;
   font-weight: 600;
   color: #1f2937;
+  /* 大小变化时（key 变化重挂载）闪一下暖金，与场景「确认闪」呼应 */
+  animation: value-flash 0.3s ease-out;
+}
+
+@keyframes value-flash {
+  0% { color: #b8860b; transform: scale(1.25); }
+  100% { color: #1f2937; transform: scale(1); }
 }
 
 .prop-btn {
@@ -498,6 +505,12 @@ body.resizing {
 
 .prop-btn:hover {
   background: #f3f4f6;
+}
+
+/* 按钮按下的瞬间反馈：轻微下沉 + 暖金描边，让「换样式/删除」有可感知的落定感 */
+.prop-btn:active {
+  transform: translateY(1px);
+  border-color: #ffd54f;
 }
 
 .prop-style {
@@ -653,6 +666,7 @@ body.resizing {
 
 /* 单张卡片 */
 .world-card {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 14px;
@@ -661,12 +675,58 @@ body.resizing {
   border: 1px solid #e5e7eb;
   border-radius: 14px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  transition: box-shadow 0.15s, transform 0.15s;
+  cursor: pointer;
+  transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s;
 }
 
 .world-card:hover {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
   transform: translateY(-2px);
+}
+
+/* 卡片选中态：暖金描边 + 回弹动效（与场景选中同一套反馈语言） */
+.world-card.selected {
+  border-color: #ffd54f;
+  box-shadow: 0 0 0 2px rgba(255, 213, 79, 0.35), 0 6px 20px rgba(0, 0, 0, 0.08);
+  animation: card-bounce 0.22s ease-out;
+}
+
+/* 选中态悬停时不再上移，避免与回弹动画的 transform 打架 */
+.world-card.selected:hover {
+  transform: none;
+}
+
+/* 卡片键盘焦点态：暖金轮廓（与选中描边同色，覆盖全局蓝色 focus-visible） */
+.world-card:focus-visible {
+  outline: 3px solid #ffd54f;
+  outline-offset: 2px;
+}
+
+@keyframes card-bounce {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+/* 卡片选中角标（右上角暖金徽章） */
+.world-card-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #5d4037;
+  background: #ffd54f;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  animation: badge-pop 0.2s ease-out;
+}
+
+@keyframes badge-pop {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 .world-card-swatch {

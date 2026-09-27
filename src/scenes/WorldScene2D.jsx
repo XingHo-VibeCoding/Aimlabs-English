@@ -431,6 +431,8 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
       objects: [],
       keys: {},
       selected: null,
+      selectedAt: 0, // 最近一次选中的时刻（毫秒），驱动「选中回弹」动画
+      confirmAt: 0, // 最近一次变换落定的时刻（毫秒），驱动「确认闪」动画
       cam: { x: 0, y: 0 }, // 摄像机左上角（世界坐标，格）
       zoom: 1, // 缩放倍率
       hover: null, // 拖拽悬停时的落点预览（世界坐标，格）
@@ -484,6 +486,7 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
         if (dx < r && dy < r) { hit = obj; break }
       }
       state.selected = hit
+      if (hit) state.selectedAt = performance.now() // 选中瞬间，触发回弹
       if (sceneRef.current && sceneRef.current.onSelectChange) {
         sceneRef.current.onSelectChange(hit ? { ...hit.userData } : null)
       }
@@ -523,6 +526,7 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
           state.objects.push(obj)
           // 放置后自动选中，方便立即编辑
           state.selected = obj
+          state.selectedAt = performance.now()
           if (sceneRef.current.onSelectChange) {
             sceneRef.current.onSelectChange({ ...obj.userData })
           }
@@ -565,6 +569,7 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
           if (!state.selected) return null
           Object.assign(state.selected.userData, patch)
           if (patch.scale !== undefined) state.selected.scale = patch.scale
+          state.confirmAt = performance.now() // 变换落定，闪一次确认光
           if (sceneRef.current.onSelectChange) sceneRef.current.onSelectChange({ ...state.selected.userData })
           return state.selected.userData
         },
@@ -575,6 +580,7 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
           const n = counts[type] || 1
           if (n > 1) {
             state.selected.userData.variant = ((state.selected.userData.variant || 0) + 1) % n
+            state.confirmAt = performance.now() // 换变体落定，闪确认光
             if (sceneRef.current.onSelectChange) sceneRef.current.onSelectChange({ ...state.selected.userData })
           }
           return state.selected.userData
@@ -691,8 +697,34 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
       const sorted = [...state.objects].sort((a, b) => a.y - b.y)
       for (const obj of sorted) {
         if (obj === state.selected) {
-          ctx.fillStyle = 'rgba(37,99,235,0.3)'
-          ctx.fillRect(obj.x * TILE - 2, obj.y * TILE - 2, TILE + 4, TILE + 4)
+          // ===== 选中反馈（暖金描边 + 呼吸 + 回弹 + 确认闪）=====
+          const selAge = time - state.selectedAt // 选中后经过的毫秒
+          // 选中回弹：前 220ms 内先放大 8% 再弹回，之后恢复 1
+          let selBounce = 1
+          if (selAge < 220) {
+            const t = selAge / 220 // 0~1
+            selBounce = 1 + Math.sin(t * Math.PI) * 0.08
+          }
+          // 呼吸：描边明暗以 ~1.4s 周期缓慢起伏（幅度 30%）
+          const breathe = 0.5 + 0.5 * Math.sin(time * 0.0045)
+          const strokeAlpha = 0.55 + 0.3 * breathe
+          // 确认闪：变换落定后 300ms 内描边变亮一次再回落
+          const confAge = time - state.confirmAt
+          let flash = 0
+          if (confAge >= 0 && confAge < 300) {
+            flash = Math.sin((1 - confAge / 300) * Math.PI) // 从亮到暗的半个正弦
+          }
+
+          const cx = obj.x * TILE + TILE / 2
+          const cy = obj.y * TILE + TILE / 2
+          const half = TILE / 2 * (obj.scale || 1) * selBounce
+          // 选中阴影（暖金淡底，随回弹缩放）
+          ctx.fillStyle = `rgba(255, 213, 79, ${0.18 + 0.08 * breathe})`
+          ctx.fillRect(cx - half, cy - half, half * 2, half * 2)
+          // 描边：暖金，呼吸 + 确认闪叠加
+          ctx.strokeStyle = `rgba(255, 213, 79, ${Math.min(1, strokeAlpha + flash)})`
+          ctx.lineWidth = 2 + flash * 2
+          ctx.strokeRect(cx - half, cy - half, half * 2, half * 2)
         }
         drawObject(ctx, obj, time)
       }
