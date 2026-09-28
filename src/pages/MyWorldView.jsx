@@ -6,6 +6,7 @@
 import { useState } from 'react'
 import WorldItemCard from '../components/WorldItemCard.jsx'
 import { MOCK_WORLD_ITEMS } from '../data/mockWorldItems.js'
+import { typeLabel } from '../ai/dictionary.js'
 
 // 四个状态名，中文 + 英文，方便理解
 const STATUSES = [
@@ -15,9 +16,18 @@ const STATUSES = [
   { key: 'error', label: '出错 Error' },
 ]
 
+// 筛选维度：按物体类型筛。'all' = 全部；其余来自 mock 数据里的 type
+// 特意加入 mock 里没有的 'bird'，用于演示「无结果」这一种情况
+const FILTERS = ['all', 'tree', 'house', 'cat', 'rock', 'mountain', 'ball', 'bird']
+
 export default function MyWorldView({ onBack }) {
   const [status, setStatus] = useState('success')
   const [selectedId, setSelectedId] = useState(null) // 当前选中的卡片 id（null = 无选中）
+  const [filter, setFilter] = useState('all') // 当前筛选类型，'all' = 全部
+
+  // 按当前筛选条件过滤：'all' 显示全部，否则只显示 type 匹配的卡片
+  const filteredItems =
+    filter === 'all' ? MOCK_WORLD_ITEMS : MOCK_WORLD_ITEMS.filter((it) => it.type === filter)
 
   // 点击卡片：选中 / 取消（再点同一张 = 取消）
   function toggleSelect(id) {
@@ -32,6 +42,20 @@ export default function MyWorldView({ onBack }) {
         </button>
         <h1 className="myworld-title">我的世界 · My World</h1>
         <p className="myworld-sub">用英文造过的东西，都在这里 · Everything you've built with English lives here</p>
+      </div>
+
+      {/* 筛选条：按物体类型筛，'全部' 一键恢复全量 */}
+      <div className="filter-bar" role="group" aria-label="按物体类型筛选 · Filter by type">
+        {FILTERS.map((f) => (
+          <button
+            key={f}
+            className={filter === f ? 'filter-chip active' : 'filter-chip'}
+            aria-pressed={filter === f}
+            onClick={() => setFilter(f)}
+          >
+            {f === 'all' ? '全部 All' : typeLabel(f)}
+          </button>
+        ))}
       </div>
 
       <div className="myworld-body">
@@ -57,9 +81,9 @@ export default function MyWorldView({ onBack }) {
           </div>
         )}
 
-        {status === 'success' && (
+        {status === 'success' && filteredItems.length > 0 && (
           <div className="world-grid">
-            {MOCK_WORLD_ITEMS.map((item) => (
+            {filteredItems.map((item) => (
               <WorldItemCard
                 key={item.id}
                 item={item}
@@ -67,6 +91,14 @@ export default function MyWorldView({ onBack }) {
                 onClick={() => toggleSelect(item.id)}
               />
             ))}
+          </div>
+        )}
+
+        {status === 'success' && filteredItems.length === 0 && (
+          <div className="state-box">
+            <div className="state-icon">🔍</div>
+            <p>没有找到这个类型的物品 · No items of this type</p>
+            <p className="state-hint">换个类型，或点「全部」回到所有物品 · Pick another type, or tap All</p>
           </div>
         )}
       </div>

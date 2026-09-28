@@ -657,6 +657,46 @@ body.resizing {
   padding: 8px 32px 24px;
 }
 
+/* 筛选条：按类型筛（Day 12） */
+.filter-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 32px 0;
+}
+
+.filter-chip {
+  padding: 6px 16px;
+  font-size: 13px;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.filter-chip:hover {
+  background: #eef2ff;
+  border-color: #93c5fd;
+}
+
+/* 当前选中的筛选：暖金高亮（与选中态同一套视觉语言），不只靠颜色区分 */
+.filter-chip.active {
+  background: #ffd54f;
+  border-color: #f0b429;
+  color: #5d4037;
+  font-weight: 700;
+  box-shadow: 0 0 0 2px rgba(255, 213, 79, 0.35);
+}
+
+.filter-chip:focus-visible {
+  outline: 3px solid #ffd54f;
+  outline-offset: 2px;
+}
+
 /* 卡片墙网格 */
 .world-grid {
   display: grid;
@@ -1194,6 +1234,7 @@ body.resizing {
   /* 我的世界页：窄屏收紧 header 边距、卡片墙降为单列 */
   .myworld-header { padding: 18px 16px 8px; }
   .myworld-body { padding: 8px 16px 20px; }
+  .filter-bar { padding: 10px 16px 0; }
   .world-grid { grid-template-columns: 1fr; gap: 12px; }
   .state-switcher { padding: 12px 16px; }
 }
