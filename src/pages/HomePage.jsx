@@ -5,9 +5,10 @@
 // 右下角「演示模拟器」用于亲眼验证四状态，第 3 周接真实数据后移除
 
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { readSave, clearSave, writeDemoSave, saveSizeKB } from '../utils/saveStorage.js'
 
-export default function HomePage({ onStart, onWorld }) {
+export default function HomePage() {
   // saveState: loading | success | empty | error
   const [saveState, setSaveState] = useState('loading')
   const [saveData, setSaveData] = useState(null)
@@ -84,18 +85,18 @@ export default function HomePage({ onStart, onWorld }) {
               <p className="hp-save-meta">
                 {saveData.items.length} 个物体 · {saveData.savedAt || '未知时间'} · {saveSizeKB()}
               </p>
-              <button className="hp-btn hp-btn-primary" onClick={onStart}>
+              <Link className="hp-btn hp-btn-primary" to="/editor">
                 继续上次 · Continue
-              </button>
+              </Link>
             </div>
           )}
 
           {saveState === 'empty' && (
             <div className="hp-save-box">
               <p className="hp-save-hint">🌱 还没有存档，从一句英文开始吧 · No save yet</p>
-              <button className="hp-btn hp-btn-primary" onClick={onStart}>
+              <Link className="hp-btn hp-btn-primary" to="/editor">
                 开始建造 · Start Building
-              </button>
+              </Link>
             </div>
           )}
 
@@ -111,9 +112,9 @@ export default function HomePage({ onStart, onWorld }) {
 
         {/* 空状态/无存档时主按钮也要可见（AC-1：开始建造始终可见） */}
         {saveState === 'success' && (
-          <button className="hp-btn hp-btn-secondary" onClick={onStart}>
+          <Link className="hp-btn hp-btn-secondary" to="/editor">
             开始新世界 · New World
-          </button>
+          </Link>
         )}
 
         {/* 次要入口 */}
@@ -121,9 +122,9 @@ export default function HomePage({ onStart, onWorld }) {
           <button className="hp-link" onClick={() => setShowVocabTip(!showVocabTip)}>
             添加词库 · Vocabulary
           </button>
-          <button className="hp-link" onClick={onWorld}>
+          <Link className="hp-link" to="/world">
             我的世界 · My World
-          </button>
+          </Link>
         </div>
         {showVocabTip && (
           <p className="hp-vocab-tip">词库管理将在后续版本开放 · Coming in a later version</p>

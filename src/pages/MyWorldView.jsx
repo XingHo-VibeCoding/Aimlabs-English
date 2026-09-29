@@ -4,6 +4,7 @@
 // 底部有一个「状态模拟器」开关，方便手动切换四种状态亲眼验证（第 3 周接真 API 后移除）
 
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import WorldItemCard from '../components/WorldItemCard.jsx'
 import { MOCK_WORLD_ITEMS } from '../data/mockWorldItems.js'
 import { typeLabel } from '../ai/dictionary.js'
@@ -20,7 +21,7 @@ const STATUSES = [
 // 特意加入 mock 里没有的 'bird'，用于演示「无结果」这一种情况
 const FILTERS = ['all', 'tree', 'house', 'cat', 'rock', 'mountain', 'ball', 'bird']
 
-export default function MyWorldView({ onBack }) {
+export default function MyWorldView() {
   const [status, setStatus] = useState('success')
   const [selectedId, setSelectedId] = useState(null) // 当前选中的卡片 id（null = 无选中）
   const [filter, setFilter] = useState('all') // 当前筛选类型，'all' = 全部
@@ -37,9 +38,9 @@ export default function MyWorldView({ onBack }) {
   return (
     <div className="myworld">
       <div className="myworld-header">
-        <button className="topbar-btn myworld-back" onClick={onBack} title="回到主界面 · Back to home">
+        <Link className="topbar-btn myworld-back" to="/" title="回到主界面 · Back to home">
           ← 主界面
-        </button>
+        </Link>
         <h1 className="myworld-title">我的世界 · My World</h1>
         <p className="myworld-sub">用英文造过的东西，都在这里 · Everything you've built with English lives here</p>
       </div>

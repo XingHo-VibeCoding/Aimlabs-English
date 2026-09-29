@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
+import { Routes, Route, Navigate, Link } from 'react-router-dom'
 import WorldScene2D from './scenes/WorldScene2D.jsx'
 import HomePage from './pages/HomePage.jsx'
 import MyWorldView from './pages/MyWorldView.jsx'
@@ -7,7 +8,6 @@ import { writeSave } from './utils/saveStorage.js'
 import { readFontScale, writeFontScale, FONT_SCALE_MIN, FONT_SCALE_MAX } from './utils/fontScale.js'
 
 export default function App() {
-  const [view, setView] = useState('start')
   const [fontScale, setFontScale] = useState(readFontScale)
 
   // 字号缩放同步到根元素，供 CSS 使用（界面文字用 rem/em 会随它缩放）
@@ -20,22 +20,27 @@ export default function App() {
     writeFontScale(v)
   }
 
-  if (view === 'start') {
-    return <HomePage onStart={() => setView('editor')} onWorld={() => setView('world')} />
-  }
-  if (view === 'world') {
-    return <MyWorldView onBack={() => setView('start')} />
-  }
+  // 三个视图用路由切换：/ 首页、/editor 编辑器、/world 我的世界
+  // 未匹配的路径兜底重定向回首页
   return (
-    <EditorPage
-      onBack={() => setView('start')}
-      fontScale={fontScale}
-      onFontScale={handleFontScale}
-    />
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route
+        path="/editor"
+        element={
+          <EditorPage
+            fontScale={fontScale}
+            onFontScale={handleFontScale}
+          />
+        }
+      />
+      <Route path="/world" element={<MyWorldView />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }
 
-function EditorPage({ onBack, fontScale, onFontScale }) {
+function EditorPage({ fontScale, onFontScale }) {
   const sceneRef = useRef(null)
   const [input, setInput] = useState('')
   const [message, setMessage] = useState('')
@@ -192,9 +197,9 @@ function EditorPage({ onBack, fontScale, onFontScale }) {
   return (
     <div className="editor">
       <header className="editor-topbar">
-        <button className="topbar-btn" onClick={onBack} title="回到主界面 · Back to home">
+        <Link className="topbar-btn" to="/" title="回到主界面 · Back to home">
           ← 主界面
-        </button>
+        </Link>
         <span className="editor-logo">WordWorld</span>
         <div className="editor-topbar-right">
           <button className="topbar-btn" onClick={handleSave}>
