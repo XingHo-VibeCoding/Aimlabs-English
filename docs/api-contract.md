@@ -22,7 +22,7 @@
 | 环境 ID | `fallsnow-d4gwz9mht57ea9014` |
 | 后端网关域名 | `https://fallsnow-d4gwz9mht57ea9014-1499380185.ap-shanghai.app.tcloudbase.com` |
 | 前端静态托管域名 | `https://fallsnow-d4gwz9mht57ea9014-1499380185.tcloudbaseapp.com` |
-| 平台 | 腾讯云 CloudBase（免费体验版，到期 2027-09-01） |
+| 平台 | 腾讯云 CloudBase（免费体验版，到期 2027-04-01） |
 
 ---
 
