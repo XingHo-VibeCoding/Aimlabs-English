@@ -7,6 +7,9 @@ node_modules/
 # 构建产物（npm run build 生成，能随时重新打包，不提交）
 dist/
 
+# 临时打包产物（部署上传用的 zip，能随时重新打包，不提交）
+*.zip
+
 # 系统残留文件
 .DS_Store
 Thumbs.db
