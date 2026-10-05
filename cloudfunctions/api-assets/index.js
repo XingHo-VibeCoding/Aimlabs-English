@@ -1,27 +1,15 @@
 /**
- * /api/assets —— 素材库读接口（CloudBase HTTP 函数版，Day 17）
+ * /api/assets —— 素材库读接口（CloudBase HTTP 函数版，Day 17；Day 19 重构拆出数据层）
  *
  * 它在作品里的位置：前端「我的世界」/素材画廊将来要从这里拿真数据，
  * 取代 src/data/mockWorldItems.js 里的本地假数据。
  *
- * 怎么连数据库：这个环境的新版 PostgreSQL 不用「host + 密码直连」，
- * 而是访问官方 REST 网关（类比：数据库开了个食堂取餐窗口）：
- *   https://<环境ID>.api.tcloudbasegateway.com/v1/rdb/rest/<表名>
- * 请求头带 API Key（类比员工卡，对应 service_role 管理员角色）。
- * Key 存在云函数「环境变量」CLOUDBASE_API_KEY 里（控制台函数配置处粘贴），
- * 不写进代码、不进 git —— AGENTS.md 第 5.3 条。
+ * Day 19 重构：原来「连数据库」的代码（连接地址、API Key、fetch 取餐）
+ * 已经从本文件移走，收进同目录的 db.js（数据访问层）。
+ * 本文件现在只干接口层的活：收请求 → 调 db.queryAssets → 回 JSON。
  */
 const http = require('http');
-
-// 数据库 REST 网关地址（环境 ID 不是机密，公网域名本来就含它）
-const DB_BASE = 'https://fallsnow-d4gwz9mht57ea9014.api.tcloudbasegateway.com/v1/rdb/rest';
-// API Key：只从环境变量读，绝不硬编码。
-// 兼容三个常见变量名：手动配的 CLOUDBASE_API_KEY（推荐），
-// 以及控制台「API Key 设置」开关可能注入的 CLOUDBASE_APIKEY / TCB_API_KEY
-const API_KEY =
-  process.env.CLOUDBASE_API_KEY ||
-  process.env.CLOUDBASE_APIKEY ||
-  process.env.TCB_API_KEY;
+const db = require('./db');
 
 const server = http.createServer(async (req, res) => {
   // 允许跨域：前端静态托管的域名和接口域名不同，浏览器默认会拦，加这个头才放行
@@ -46,27 +34,16 @@ const server = http.createServer(async (req, res) => {
     const limit =
       Number.isInteger(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : null;
 
-    const query = limit ? `?select=*&limit=${limit}` : '?select=*';
+    // 取餐：调数据访问层拿素材（连接地址 / 员工卡都在 db.js 里，这里不管）
+    const result = await db.queryAssets(limit);
 
-    // 取餐：GET /v1/rdb/rest/assets?select=*，Authorization 头出示员工卡
-    const r = await fetch(`${DB_BASE}/assets${query}`, {
-      headers: { Authorization: `Bearer ${API_KEY}` },
-    });
-    const text = await r.text();
-    let body = null;
-    try {
-      body = JSON.parse(text);
-    } catch (e) {
-      /* 网关偶发返回非 JSON，落到底部错误分支统一处理 */
-    }
-
-    if (!r.ok) {
+    if (!result.ok) {
       // PostgREST 出错时返回 {code, message, ...}，把 message 带回去好排障
-      throw new Error((body && body.message) || `gateway HTTP ${r.status}`);
+      throw new Error((result.body && result.body.message) || `gateway HTTP ${result.status}`);
     }
 
     res.statusCode = 200;
-    res.end(JSON.stringify({ ok: true, data: body }));
+    res.end(JSON.stringify({ ok: true, data: result.body }));
   } catch (err) {
     res.statusCode = 500;
     res.end(
