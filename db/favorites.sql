@@ -21,13 +21,25 @@ CREATE TABLE IF NOT EXISTS favorites (
 );
 
 -- ---------------------------------------------------------------
--- 2. 授权：让后端 API Key（service_role 角色）能读这些表
---    favorites 是今天新建的；assets / scene_objects 是 Day 16
---    建的，当时没授权，这里一并补上（读接口只需要 SELECT）
+-- 1b. 防重复收藏（Day 18 新增）：
+--   给 object_id 加唯一约束 —— 同一个场景物体只能被收藏一次。
+--   靠数据库兜底拦截重复提交，比「代码里先查后插」更稳（并发也不会漏）。
+--   重复插入会触发唯一冲突，错误码 23505，代码据此返回「已收藏」。
+--   注意：IF NOT EXISTS 不会补加约束，若表已在旧结构建过，
+--   需单独执行一句 ALTER TABLE（见文件末尾的 Day 18 迁移块）。
+-- ---------------------------------------------------------------
+ALTER TABLE favorites ADD CONSTRAINT favorites_object_id_key UNIQUE (object_id);
+
+-- ---------------------------------------------------------------
+-- 2. 授权：让后端 API Key（service_role 角色）能读写这些表
+--    Day 17 只给了 SELECT（读接口够用）；Day 18 开始写库，
+--    给 favorites 补 INSERT（POST 收藏要插入新行）。
+--    assets / scene_objects 仍是只读，Day 18 不需要写它们。
 -- ---------------------------------------------------------------
 GRANT SELECT ON public.favorites     TO service_role;
 GRANT SELECT ON public.assets        TO service_role;
 GRANT SELECT ON public.scene_objects TO service_role;
+GRANT INSERT ON public.favorites     TO service_role;   -- Day 18：允许写入收藏
 
 -- ---------------------------------------------------------------
 -- 3. 清空旧种子（可重复执行的关键；favorites 没有被别人引用，可放心删）
@@ -44,3 +56,15 @@ INSERT INTO favorites (id, object_id) VALUES
     ('fav-0001', 'obj-0001'),
     ('fav-0002', 'obj-0004'),
     ('fav-0003', 'obj-0003');
+
+-- =====================================================================
+-- Day 18 迁移块（表在 Day 17 已建成、不想清空重跑时的补丁）
+-- =====================================================================
+-- 若 favorites 表在跑过 Day 17 版本后已经存在，上面的
+--   CREATE TABLE IF NOT EXISTS 会跳过建表，但唯一约束和 INSERT 授权
+--   也不会自动补上。这时单独执行下面两句即可（幂等：重复跑会报
+--   “已存在”，忽略即可；约束/授权存在与否可用 \d 与 \du 查）。
+--   推荐直接整文件重跑（前面有 DELETE FROM favorites），更省心。
+
+-- ALTER TABLE favorites ADD CONSTRAINT favorites_object_id_key UNIQUE (object_id);
+-- GRANT INSERT ON public.favorites TO service_role;
