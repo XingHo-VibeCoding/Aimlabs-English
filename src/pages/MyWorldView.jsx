@@ -1,34 +1,77 @@
 // MyWorldView —— 主视图「我的世界」
-// 展示用户用英文造过的所有东西（卡片墙）
+// 展示素材库（能造的东西的清单），数据来自后端 /api/assets（Day 20 接线真数据）
 // 四种状态：loading 加载中 / success 有数据 / empty 空 / error 出错
-// 底部有一个「状态模拟器」开关，方便手动切换四种状态亲眼验证（第 3 周接真 API 后移除）
+// （Day 20 之前这里用的是本地假数据 MOCK_WORLD_ITEMS，现已换成真实接口）
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import WorldItemCard from '../components/WorldItemCard.jsx'
-import { MOCK_WORLD_ITEMS } from '../data/mockWorldItems.js'
-import { typeLabel } from '../ai/dictionary.js'
 
-// 四个状态名，中文 + 英文，方便理解
-const STATUSES = [
-  { key: 'loading', label: '加载中 Loading' },
-  { key: 'success', label: '有数据 Success' },
-  { key: 'empty', label: '空 Empty' },
-  { key: 'error', label: '出错 Error' },
-]
+// 后端接口完整地址（前端静态托管域名和接口域名不同源，必须写完整公网地址）
+// Day 20 定：静态托管 tcloudbaseapp.com，接口 app.tcloudbase.com，跨域已由后端放行
+const API_BASE = 'https://fallsnow-d4gwz9mht57ea9014-1499380185.ap-shanghai.app.tcloudbase.com'
+const ASSETS_URL = `${API_BASE}/api/assets`
 
-// 筛选维度：按物体类型筛。'all' = 全部；其余来自 mock 数据里的 type
-// 特意加入 mock 里没有的 'bird'，用于演示「无结果」这一种情况
-const FILTERS = ['all', 'tree', 'house', 'cat', 'rock', 'mountain', 'ball', 'bird']
+// 素材来源 → 卡片色块（一眼区分预制 / AI 生成；数据库里 source 只有这两种值）
+const SOURCE_COLOR = {
+  preset: 0x4caf50,       // 预制素材 = 绿
+  ai_generated: 0xab47bc, // AI 生成 = 紫
+}
+
+// 筛选维度：按素材类别筛。'all' = 全部；其余来自数据库 assets.category 可能出现的值
+const FILTERS = ['all', 'nature', 'building', 'animal', 'prop']
+
+/**
+ * 适配层：把后端 assets 表的字段（id/name_en/category/source/variant_params）
+ * 映射成卡片组件认识的字段（phrase/type/color/scale/createdAt）。
+ * 这样 WorldItemCard 不用改，就能直接展示素材。
+ */
+function adaptAsset(a) {
+  return {
+    id: a.id,
+    phrase: a.name_en || a.id,                 // 素材英文名
+    type: a.category || 'prop',                // 类别（nature/building/animal/prop）
+    color: SOURCE_COLOR[a.source] || 0x9e9e9e, // 来源色块
+    scale: 1.0,                                // 素材库没有大小概念，固定 1
+    createdAt: a.source === 'ai_generated' ? 'AI 生成' : '预制 Preset',
+  }
+}
 
 export default function MyWorldView() {
-  const [status, setStatus] = useState('success')
-  const [selectedId, setSelectedId] = useState(null) // 当前选中的卡片 id（null = 无选中）
-  const [filter, setFilter] = useState('all') // 当前筛选类型，'all' = 全部
+  const [status, setStatus] = useState('loading') // loading / success / empty / error
+  const [items, setItems] = useState([])          // 从接口拉回的素材（已适配）
+  const [selectedId, setSelectedId] = useState(null) // 当前选中的卡片 id
+  const [filter, setFilter] = useState('all')     // 当前筛选类别，'all' = 全部
 
-  // 按当前筛选条件过滤：'all' 显示全部，否则只显示 type 匹配的卡片
+  // 挂载时拉一次真数据（Day 20：本地接线，fetch 后端 /api/assets）
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      setStatus('loading')
+      try {
+        const res = await fetch(ASSETS_URL)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const json = await res.json()
+        if (!json.ok || !Array.isArray(json.data)) {
+          throw new Error('接口返回格式不对')
+        }
+        const adapted = json.data.map(adaptAsset)
+        if (cancelled) return
+        setItems(adapted)
+        setStatus(adapted.length === 0 ? 'empty' : 'success')
+      } catch (err) {
+        if (cancelled) return
+        console.error('加载素材失败', err)
+        setStatus('error')
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [])
+
+  // 按当前筛选条件过滤：'all' 显示全部，否则只显示 category 匹配的卡片
   const filteredItems =
-    filter === 'all' ? MOCK_WORLD_ITEMS : MOCK_WORLD_ITEMS.filter((it) => it.type === filter)
+    filter === 'all' ? items : items.filter((it) => it.type === filter)
 
   // 点击卡片：选中 / 取消（再点同一张 = 取消）
   function toggleSelect(id) {
@@ -42,11 +85,11 @@ export default function MyWorldView() {
           ← 主界面
         </Link>
         <h1 className="myworld-title">我的世界 · My World</h1>
-        <p className="myworld-sub">用英文造过的东西，都在这里 · Everything you've built with English lives here</p>
+        <p className="myworld-sub">素材库 · 能造的东西都在这里 · Everything you can build</p>
       </div>
 
-      {/* 筛选条：按物体类型筛，'全部' 一键恢复全量 */}
-      <div className="filter-bar" role="group" aria-label="按物体类型筛选 · Filter by type">
+      {/* 筛选条：按素材类别筛，'全部' 一键恢复全量 */}
+      <div className="filter-bar" role="group" aria-label="按类别筛选 · Filter by category">
         {FILTERS.map((f) => (
           <button
             key={f}
@@ -54,7 +97,7 @@ export default function MyWorldView() {
             aria-pressed={filter === f}
             onClick={() => setFilter(f)}
           >
-            {f === 'all' ? '全部 All' : typeLabel(f)}
+            {f === 'all' ? '全部 All' : f}
           </button>
         ))}
       </div>
@@ -63,7 +106,7 @@ export default function MyWorldView() {
         {status === 'loading' && (
           <div className="state-box">
             <div className="spinner" />
-            <p>正在加载你的世界… Loading your world…</p>
+            <p>正在加载素材库… Loading assets…</p>
           </div>
         )}
 
@@ -77,8 +120,8 @@ export default function MyWorldView() {
         {status === 'empty' && (
           <div className="state-box">
             <div className="state-icon">🌱</div>
-            <p>你还没造过东西 · Nothing here yet</p>
-            <p className="state-hint">回到编辑器，输入一句英文试试，比如 a red tree</p>
+            <p>素材库还是空的 · No assets yet</p>
+            <p className="state-hint">回到数据库，往 assets 表加几条素材试试</p>
           </div>
         )}
 
@@ -98,24 +141,10 @@ export default function MyWorldView() {
         {status === 'success' && filteredItems.length === 0 && (
           <div className="state-box">
             <div className="state-icon">🔍</div>
-            <p>没有找到这个类型的物品 · No items of this type</p>
-            <p className="state-hint">换个类型，或点「全部」回到所有物品 · Pick another type, or tap All</p>
+            <p>没有这个类别的素材 · No assets of this category</p>
+            <p className="state-hint">换个类别，或点「全部」回到全部素材 · Pick another, or tap All</p>
           </div>
         )}
-      </div>
-
-      {/* 状态模拟器：手动切换四种状态，验证用（第 3 周接真 API 后移除） */}
-      <div className="state-switcher">
-        <span className="state-switcher-label">状态模拟 State Demo：</span>
-        {STATUSES.map((s) => (
-          <button
-            key={s.key}
-            className={status === s.key ? 'state-btn active' : 'state-btn'}
-            onClick={() => setStatus(s.key)}
-          >
-            {s.label}
-          </button>
-        ))}
       </div>
     </div>
   )

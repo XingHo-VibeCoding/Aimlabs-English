@@ -9,6 +9,8 @@
 const http = require('http');
 
 const server = http.createServer((req, res) => {
+  // 跨域说明（Day 20）：不手写 Access-Control-Allow-Origin，交给网关自动回，
+  // 否则会和网关拼成多值无效头反被浏览器拦截。
   // 任何路径、任何方法都返回同样的健康状态（健康检查不需要区分）
   res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(

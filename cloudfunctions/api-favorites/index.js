@@ -44,7 +44,8 @@ function readBody(req) {
 }
 
 const server = http.createServer(async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // 跨域说明（Day 20 修正）：不再手写 Access-Control-Allow-Origin，交给网关自动回。
+  // 手写会和网关拼成多值无效头（如 "origin,*"），反被浏览器拦截。
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
   // 浏览器跨域预检（OPTIONS）：直接放行，让 POST 能带 JSON body 发过来

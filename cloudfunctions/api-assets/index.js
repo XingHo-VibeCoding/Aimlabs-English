@@ -12,8 +12,9 @@ const http = require('http');
 const db = require('./db');
 
 const server = http.createServer(async (req, res) => {
-  // 允许跨域：前端静态托管的域名和接口域名不同，浏览器默认会拦，加这个头才放行
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // 跨域说明（Day 20 修正）：这里不再手写 Access-Control-Allow-Origin。
+  // 腾讯 HTTP 网关会自动回一条合法的放行头；自己再写一个会和网关拼成
+  // "http://localhost:5174,*" 这种多值无效头，反被浏览器拦截。交给网关即可。
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
   // 读接口只认 GET，其他方法一律拒绝
