@@ -4,9 +4,11 @@
  * 收藏的对象是「场景物体」：favorites.object_id -> scene_objects.id
  * （Day 17 拍板：收藏摆好的具体物体，不是素材种类）
  *
- * 两个方法：
- *   GET  /api/favorites  —— 读收藏列表，把「收藏 → 物体 → 素材」外键链一起取回
- *   POST /api/favorites  —— 新增一条收藏（Day 18），接收 { object_id }
+ * 四个方法：
+ *   GET    /api/favorites     —— 读收藏列表，把「收藏 → 物体 → 素材」外键链一起取回（跳过已软删除）
+ *   POST   /api/favorites     —— 新增一条收藏（Day 18），接收 { object_id }
+ *   PATCH  /api/favorites/:id —— 修改一条收藏指向的物体（Day 22），只开放 object_id
+ *   DELETE /api/favorites/:id —— 软删除一条收藏（Day 22），置 is_deleted=true 而非真删
  *
  * Day 18 防重复提交：数据库 favorites.object_id 加了唯一约束，
  *   同一个物体收藏两次会触发唯一冲突（错误码 23505），
@@ -48,9 +50,9 @@ const server = http.createServer(async (req, res) => {
   // 手写会和网关拼成多值无效头（如 "origin,*"），反被浏览器拦截。
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-  // 浏览器跨域预检（OPTIONS）：直接放行，让 POST 能带 JSON body 发过来
+  // 浏览器跨域预检（OPTIONS）：直接放行，让 PATCH/DELETE 能带 JSON body 发过来
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.statusCode = 204;
     res.end();
@@ -185,12 +187,129 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ============ 分支 3：PATCH —— 修改收藏指向的物体（Day 22 新增） ============
+  if (req.method === 'PATCH') {
+    try {
+      // 从路径里抠出 id：/api/favorites/fav-0001 -> fav-0001
+      // 说明：网关转发时可能已剥掉 /api/favorites 前缀，req.url 只剩 /fav-0001，
+      //   所以不校验倒数第二段，直接取路径最后一段当 id（网关已保证路由正确）。
+      const url = new URL(req.url, 'http://localhost');
+      const seg = url.pathname.split('/').filter(Boolean);
+      const id = seg[seg.length - 1];
+
+      if (!id) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ ok: false, error: { code: 'MISSING_ID', message: '缺少收藏记录 ID' } }));
+        return;
+      }
+
+      // 读 body，解析要改的字段
+      const raw = await readBody(req);
+      let payload = null;
+      try {
+        payload = raw ? JSON.parse(raw) : {};
+      } catch (e) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ ok: false, error: { code: 'INVALID_JSON', message: '请求体不是合法的 JSON' } }));
+        return;
+      }
+
+      const objectId = payload.object_id;
+
+      // 校验：object_id 必填且为字符串（只开放这一个字段，其余一律忽略）
+      if (objectId === undefined || objectId === null || String(objectId).trim() === '') {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ ok: false, error: { code: 'MISSING_FIELD', message: '缺少必填字段 object_id' } }));
+        return;
+      }
+      if (typeof objectId !== 'string') {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ ok: false, error: { code: 'INVALID_FIELD', message: 'object_id 必须是字符串' } }));
+        return;
+      }
+
+      console.log(`[PATCH /api/favorites] id=${id} object_id=${objectId} at ${new Date().toISOString()}`);
+
+      const result = await db.updateFavorite(id, objectId);
+
+      // 目标行不存在：PostgREST 会返回 200 但空数组（更新 0 行）
+      const updated = Array.isArray(result.body) ? result.body[0] : null;
+      if (result.ok && !updated) {
+        res.statusCode = 404;
+        res.end(JSON.stringify({ ok: false, error: { code: 'NOT_FOUND', message: '没有这条收藏记录' } }));
+        return;
+      }
+
+      if (!result.ok) {
+        res.statusCode = 500;
+        res.end(JSON.stringify({
+          ok: false,
+          error: { code: 'DB_UPDATE_FAILED', message: String((result.body && result.body.message) || `gateway HTTP ${result.status}`) },
+        }));
+        return;
+      }
+
+      // 成功：返回改之后的那一行
+      res.statusCode = 200;
+      res.end(JSON.stringify({ ok: true, data: updated }));
+    } catch (err) {
+      res.statusCode = 500;
+      res.end(JSON.stringify({ ok: false, error: { code: 'DB_UPDATE_FAILED', message: String((err && err.message) || err) } }));
+    }
+    return;
+  }
+
+  // ============ 分支 4：DELETE —— 软删除收藏（Day 22 新增） ============
+  if (req.method === 'DELETE') {
+    try {
+      // 同 PATCH：网关可能已剥掉前缀，直接取路径最后一段当 id
+      const url = new URL(req.url, 'http://localhost');
+      const seg = url.pathname.split('/').filter(Boolean);
+      const id = seg[seg.length - 1];
+
+      if (!id) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ ok: false, error: { code: 'MISSING_ID', message: '缺少收藏记录 ID' } }));
+        return;
+      }
+
+      console.log(`[DELETE /api/favorites] id=${id} at ${new Date().toISOString()}`);
+
+      // 软删除：不是真删行，而是把 is_deleted 置 true（删错可找回）
+      const result = await db.softDeleteFavorite(id);
+
+      const updated = Array.isArray(result.body) ? result.body[0] : null;
+      if (result.ok && !updated) {
+        res.statusCode = 404;
+        res.end(JSON.stringify({ ok: false, error: { code: 'NOT_FOUND', message: '没有这条收藏记录' } }));
+        return;
+      }
+
+      if (!result.ok) {
+        res.statusCode = 500;
+        res.end(JSON.stringify({
+          ok: false,
+          error: { code: 'DB_DELETE_FAILED', message: String((result.body && result.body.message) || `gateway HTTP ${result.status}`) },
+        }));
+        return;
+      }
+
+      // 成功：返回被软删除的那一行（is_deleted 已是 true）
+      res.statusCode = 200;
+      res.end(JSON.stringify({ ok: true, data: updated }));
+    } catch (err) {
+      res.statusCode = 500;
+      res.end(JSON.stringify({ ok: false, error: { code: 'DB_DELETE_FAILED', message: String((err && err.message) || err) } }));
+    }
+    return;
+  }
+
   // ============ 其他方法：拒绝 ============
   res.statusCode = 405;
   res.end(
     JSON.stringify({
       ok: false,
-      error: { code: 'METHOD_NOT_ALLOWED', message: '仅支持 GET 和 POST' },
+      error: { code: 'METHOD_NOT_ALLOWED', message: '仅支持 GET、POST、PATCH 和 DELETE' },
     })
   );
 });

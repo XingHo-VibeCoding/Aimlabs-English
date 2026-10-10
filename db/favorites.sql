@@ -17,7 +17,8 @@
 CREATE TABLE IF NOT EXISTS favorites (
     id         TEXT PRIMARY KEY,                             -- 收藏记录 ID，如 fav-0001
     object_id  TEXT NOT NULL REFERENCES scene_objects(id),   -- ★ 关联字段：收藏的是哪个场景物体
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()            -- 收藏时间（不传就自动填当前时刻）
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),           -- 收藏时间（不传就自动填当前时刻）
+    is_deleted BOOLEAN NOT NULL DEFAULT false                -- ★ 软删除标记（Day 22）：true=已删，查询时跳过；删错可改回 false 找回
 );
 
 -- ---------------------------------------------------------------
@@ -40,6 +41,8 @@ GRANT SELECT ON public.favorites     TO service_role;
 GRANT SELECT ON public.assets        TO service_role;
 GRANT SELECT ON public.scene_objects TO service_role;
 GRANT INSERT ON public.favorites     TO service_role;   -- Day 18：允许写入收藏
+GRANT UPDATE ON public.favorites     TO service_role;   -- Day 22：允许改收藏（PATCH object_id / 软删除标记）
+GRANT DELETE ON public.favorites     TO service_role;   -- Day 22：预留硬删除能力（本期软删除用 UPDATE，此项为完整性）
 
 -- ---------------------------------------------------------------
 -- 3. 清空旧种子（可重复执行的关键；favorites 没有被别人引用，可放心删）
@@ -68,3 +71,16 @@ INSERT INTO favorites (id, object_id) VALUES
 
 -- ALTER TABLE favorites ADD CONSTRAINT favorites_object_id_key UNIQUE (object_id);
 -- GRANT INSERT ON public.favorites TO service_role;
+
+-- =====================================================================
+-- Day 22 迁移块（表已存在、不想清空重跑时的补丁）
+-- =====================================================================
+-- 给 favorites 加软删除字段 is_deleted，并补 UPDATE / DELETE 授权。
+-- 若表已建成（没有 is_deleted 列），单独执行下面三句即可：
+--   1) 加列（默认 false，历史数据视为「未删除」）
+--   2) 补 UPDATE 授权（PATCH 改 object_id 与软删除都要用）
+--   3) 补 DELETE 授权（预留硬删除能力）
+
+-- ALTER TABLE favorites ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT false;
+-- GRANT UPDATE ON public.favorites TO service_role;
+-- GRANT DELETE ON public.favorites TO service_role;

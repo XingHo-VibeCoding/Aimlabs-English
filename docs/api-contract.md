@@ -229,9 +229,96 @@ https://fallsnow-d4gwz9mht57ea9014-1499380185.ap-shanghai.app.tcloudbase.com/api
 
 ---
 
-## 5. 后续接口占位（Day 19–20 补充）
+## 5. 修改收藏 `PATCH /api/favorites/:id`（Day 22 新增）
 
-| 接口 | 用途 | 计划 |
+- **用途**：修改一条收藏指向的场景物体（把「收藏的物体」换成另一个）
+- **方法**：`PATCH`
+- **路径**：`/api/favorites/:id`（`:id` = 收藏记录 ID，如 `fav-0001`）
+- **鉴权**：同 `/api/assets`
+- **请求体**（JSON，`Content-Type: application/json`）
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `object_id` | string | 是 | 新的场景物体 ID（外键 → scene_objects.id）。**只开放这一个字段**，其余字段一律忽略 |
+
+**完整地址示例**
+
+```
+PATCH https://fallsnow-d4gwz9mht57ea9014-1499380185.ap-shanghai.app.tcloudbase.com/api/favorites/fav-0001
+Body: { "object_id": "obj-0005" }
+```
+
+**成功响应（200）**——返回改之后的那一行：
+
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "fav-0001",
+    "object_id": "obj-0005",
+    "created_at": "2026-10-04T07:55:00.000+00:00",
+    "is_deleted": false
+  }
+}
+```
+
+**错误响应**
+
+| 场景 | 状态码 | 错误体示例 |
 |---|---|---|
-| `PATCH /api/favorites`、`DELETE /api/favorites` | 修改 / 删除收藏 | Week 4 |
-| （待定） | 跨域细化 / 用户态鉴权 | Day 19–20 |
+| 缺 `object_id` | 400 | `{ "ok": false, "error": { "code": "MISSING_FIELD", "message": "缺少必填字段 object_id" } }` |
+| `object_id` 非字符串 | 400 | `{ "ok": false, "error": { "code": "INVALID_FIELD", "message": "object_id 必须是字符串" } }` |
+| 请求体非合法 JSON | 400 | `{ "ok": false, "error": { "code": "INVALID_JSON", "message": "请求体不是合法的 JSON" } }` |
+| 该 ID 不存在 | 404 | `{ "ok": false, "error": { "code": "NOT_FOUND", "message": "没有这条收藏记录" } }` |
+| 数据库更新失败 | 500 | `{ "ok": false, "error": { "code": "DB_UPDATE_FAILED", "message": "..." } }` |
+
+---
+
+## 6. 删除收藏 `DELETE /api/favorites/:id`（Day 22 新增，软删除）
+
+- **用途**：删除一条收藏。**采用软删除**——不真删数据行，只把 `is_deleted` 置 `true`，查询时自动跳过；删错了把标记改回 `false` 即可找回
+- **方法**：`DELETE`
+- **路径**：`/api/favorites/:id`（`:id` = 收藏记录 ID，如 `fav-0003`）
+- **鉴权**：同 `/api/assets`
+- **请求参数**：无（ID 在路径里）
+
+**完整地址示例**
+
+```
+DELETE https://fallsnow-d4gwz9mht57ea9014-1499380185.ap-shanghai.app.tcloudbase.com/api/favorites/fav-0003
+```
+
+**成功响应（200）**——返回被软删除的那一行（`is_deleted` 已是 `true`）：
+
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "fav-0003",
+    "object_id": "obj-0003",
+    "created_at": "2026-10-03T15:00:00.000+00:00",
+    "is_deleted": true
+  }
+}
+```
+
+**删除后的表现**：`GET /api/favorites` 不再返回这一条（查询加了 `is_deleted=eq.false` 过滤）。
+
+**错误响应**
+
+| 场景 | 状态码 | 错误体示例 |
+|---|---|---|
+| 该 ID 不存在 | 404 | `{ "ok": false, "error": { "code": "NOT_FOUND", "message": "没有这条收藏记录" } }` |
+| 数据库更新失败 | 500 | `{ "ok": false, "error": { "code": "DB_DELETE_FAILED", "message": "..." } }` |
+
+> **为什么软删除（Day 22 思考题落地）**：删除比新增危险，因为不可逆。硬删除一旦执行，数据永久消失；软删除把「删除」降级成「打标记」，删错能找回，是给删除动作加的一道「确认」兜底。
+
+---
+
+## 7. 后续接口占位（Day 21–22 已补齐，后续待定）
+
+| 接口 | 用途 | 状态 |
+|---|---|---|
+| `PATCH /api/favorites/:id` | 修改收藏指向的物体 | ✅ Day 22 已上线 |
+| `DELETE /api/favorites/:id` | 软删除收藏 | ✅ Day 22 已上线 |
+| （待定） | 用户态鉴权 | Week 4 后续 |

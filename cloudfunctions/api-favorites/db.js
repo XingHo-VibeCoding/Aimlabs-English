@@ -69,10 +69,11 @@ function queryAssets(limit) {
  * 读收藏列表（GET /api/favorites 用）。
  * 嵌套展开：收藏自身字段 + 关联的 scene_objects + 物体用的 assets，
  * 一条外键链一起取回（PostgREST 的 select 写法：外键表名(字段...)）。
+ * Day 22：加 is_deleted=eq.false，只返回未删除的收藏，软删除的自动跳过。
  * @param {string} select select 语句（调用方传 EMBED_SELECT 或 '*'）
  */
 function queryFavorites(select) {
-  return request(`/favorites?select=${encodeURIComponent(select)}`);
+  return request(`/favorites?select=${encodeURIComponent(select)}&is_deleted=eq.false`);
 }
 
 /**
@@ -91,9 +92,46 @@ function insertFavorite(objectId) {
   });
 }
 
+/**
+ * 修改一条收藏指向的物体（PATCH /api/favorites/:id 用）。
+ * 只开放 object_id 一个字段（Day 22 拍板），其余字段不许动。
+ * 用 PostgREST 的 ?id=eq. 定位到具体那一行，只改这一条、不误伤其它。
+ * @param {string} id 收藏记录 ID
+ * @param {string} objectId 新的场景物体 ID
+ */
+function updateFavorite(id, objectId) {
+  return request(`/favorites?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation',
+    },
+    body: JSON.stringify({ object_id: objectId }),
+  });
+}
+
+/**
+ * 软删除一条收藏（DELETE /api/favorites/:id 用，Day 22）。
+ * 不是真的删行，而是把 is_deleted 置 true（UPDATE），
+ * 查询时跳过它 —— 删错了把 is_deleted 改回 false 就能找回。
+ * @param {string} id 收藏记录 ID
+ */
+function softDeleteFavorite(id) {
+  return request(`/favorites?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation',
+    },
+    body: JSON.stringify({ is_deleted: true }),
+  });
+}
+
 // 导出给各云函数用（Node 的 CommonJS 写法）
 module.exports = {
   queryAssets,
   queryFavorites,
   insertFavorite,
+  updateFavorite,
+  softDeleteFavorite,
 };
