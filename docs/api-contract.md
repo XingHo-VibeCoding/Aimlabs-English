@@ -223,7 +223,10 @@ https://fallsnow-d4gwz9mht57ea9014-1499380185.ap-shanghai.app.tcloudbase.com/api
 | `object_id` 不是字符串 | 400 | `{ "ok": false, "error": { "code": "INVALID_FIELD", "message": "object_id 必须是字符串" } }` |
 | 请求体不是合法 JSON | 400 | `{ "ok": false, "error": { "code": "INVALID_JSON", "message": "请求体不是合法的 JSON" } }` |
 | 重复收藏同一物体 | 409 | `{ "ok": false, "error": { "code": "DUPLICATE_FAVORITE", "message": "这个物体你已经收藏过了" } }` |
+| `object_id` 指向的物体不存在 | 400 | `{ "ok": false, "error": { "code": "OBJECT_NOT_FOUND", "message": "这个物体不存在，无法收藏" } }` |
 | 数据库写入失败 | 500 | `{ "ok": false, "error": { "code": "DB_INSERT_FAILED", "message": "..." } }` |
+
+> **Day 24 修复说明**：PostgREST 把「唯一冲突 23505」和「外键冲突 23503」都映射成 HTTP 409，光看状态码分不清。接口现在按错误体里的 SQLSTATE 错误码精确区分：唯一冲突 → `DUPLICATE_FAVORITE`，外键冲突（物体不存在）→ `OBJECT_NOT_FOUND`。
 
 > **防重复提交（Day 18 重点）**：`favorites.object_id` 加了数据库唯一约束，同一物体收藏两次会被数据库拦截（唯一冲突），接口返回 409「已收藏」，库里不会出现重复行。这是靠数据库兜底，比「代码先查后插」更可靠。
 
@@ -269,8 +272,12 @@ Body: { "object_id": "obj-0005" }
 | 缺 `object_id` | 400 | `{ "ok": false, "error": { "code": "MISSING_FIELD", "message": "缺少必填字段 object_id" } }` |
 | `object_id` 非字符串 | 400 | `{ "ok": false, "error": { "code": "INVALID_FIELD", "message": "object_id 必须是字符串" } }` |
 | 请求体非合法 JSON | 400 | `{ "ok": false, "error": { "code": "INVALID_JSON", "message": "请求体不是合法的 JSON" } }` |
+| 改成已被别的收藏指向的物体 | 409 | `{ "ok": false, "error": { "code": "DUPLICATE_FAVORITE", "message": "这个物体已经被收藏过了" } }` |
+| 改成不存在的物体 | 400 | `{ "ok": false, "error": { "code": "OBJECT_NOT_FOUND", "message": "这个物体不存在，无法修改" } }` |
 | 该 ID 不存在 | 404 | `{ "ok": false, "error": { "code": "NOT_FOUND", "message": "没有这条收藏记录" } }` |
 | 数据库更新失败 | 500 | `{ "ok": false, "error": { "code": "DB_UPDATE_FAILED", "message": "..." } }` |
+
+> **Day 24 修复说明**：与 POST 相同，PATCH 也按 SQLSTATE 错误码区分「唯一冲突 23505」（改成已收藏物体 → 409）和「外键冲突 23503」（改成不存在物体 → 400），不再把两种冲突混为一谈。
 
 ---
 

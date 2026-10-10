@@ -28,6 +28,37 @@ const EMBED_SELECT =
   'scene_objects(id,asset_id,pos_x,pos_y,pos_z,rotation,scale,' +
   'assets(id,name_en,category))';
 
+/**
+ * 从 db.js 返回的 result 里提取数据库 SQLSTATE 错误码（如 23505 / 23503）。
+ * PostgREST 把「唯一冲突」和「外键冲突」都映射成 HTTP 409，光看 status 分不清，
+ * 必须看错误体里的 code（PostgreSQL 的 5 位错误码）。
+ *
+ * 双保险（Day 24 定位）：优先读 body.code；万一网关把 code 包在不同字段，
+ * 再用 body.message 里的关键词兜底识别，保证两种冲突不会混。
+ *
+ * @param {{ok:boolean,status:number,body:any}} result
+ * @returns {string|null} 形如 '23505' 的错误码；识别不出返回 null
+ */
+function dbErrCode(result) {
+  const body = result && result.body;
+  if (!body) return null;
+
+  // 路径 1：body.code 是 PostgreSQL 的 5 位 SQLSTATE（如 23505/23503）才采用。
+  // 注意不能「有 code 就用」：万一网关返回自己的错误代号（非数字），
+  // 会遮住下面的 message 兜底，导致两种冲突都掉进 500（Day 24 实测教训）。
+  const c = body.code;
+  if (c !== undefined && c !== null && /^\d{5}$/.test(String(c))) {
+    return String(c);
+  }
+
+  // 路径 2：body.message 里含数据库英文报错，用关键词兜底
+  const msg = String(body.message || body.msg || '');
+  if (msg.includes('duplicate key') || msg.includes('unique constraint')) return '23505';
+  if (msg.includes('foreign key') || msg.includes('violates foreign')) return '23503';
+
+  return null;
+}
+
 /** 读请求体（把网络过来的字节攒成字符串，再安全解析成对象） */
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -139,9 +170,13 @@ const server = http.createServer(async (req, res) => {
 
       const result = await db.insertFavorite(objectId);
 
-      // 重复提交：唯一约束冲突（PostgREST 错误码 23505，HTTP 409）
-      // 同一个物体再收藏一次 → 明确拒绝，库里不会多一行
-      if (!result.ok && result.status === 409) {
+      // 出错时按「数据库 SQLSTATE 错误码」精确区分，而不是只看 HTTP 状态码。
+      // 因为 PostgREST 把「唯一冲突 23505」和「外键冲突 23503」都映射成 HTTP 409，
+      // 只看 status 会分不清（Day 24 修复：改成不存在的物体会被误报成「已收藏」）。
+      const sqlstate = dbErrCode(result);
+
+      // 唯一约束冲突 23505：同一个物体再收藏一次 → 明确拒绝
+      if (sqlstate === '23505') {
         res.statusCode = 409;
         res.end(
           JSON.stringify({
@@ -152,7 +187,19 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      // 其他数据库错误（比如 object_id 指向不存在的物体 → 外键 23503）
+      // 外键约束冲突 23503：object_id 指向的物体不存在 → 单独提示，别和「已收藏」混为一谈
+      if (sqlstate === '23503') {
+        res.statusCode = 400;
+        res.end(
+          JSON.stringify({
+            ok: false,
+            error: { code: 'OBJECT_NOT_FOUND', message: '这个物体不存在，无法收藏' },
+          })
+        );
+        return;
+      }
+
+      // 其他数据库错误
       if (!result.ok) {
         res.statusCode = 500;
         res.end(
@@ -230,6 +277,31 @@ const server = http.createServer(async (req, res) => {
       console.log(`[PATCH /api/favorites] id=${id} object_id=${objectId} at ${new Date().toISOString()}`);
 
       const result = await db.updateFavorite(id, objectId);
+
+      // 同 POST：按 SQLSTATE 错误码精确区分，不看笼统的 status===409。
+      // 唯一冲突 23505（改成已收藏物体）和外键冲突 23503（改成不存在的物体）
+      // 在 PostgREST 里都是 HTTP 409，只有 body.code 能区分（Day 24 修复）。
+      const sqlstate = dbErrCode(result);
+
+      // 唯一约束冲突 23505：改成「已被别的收藏指向的物体」
+      if (sqlstate === '23505') {
+        res.statusCode = 409;
+        res.end(JSON.stringify({
+          ok: false,
+          error: { code: 'DUPLICATE_FAVORITE', message: '这个物体已经被收藏过了' },
+        }));
+        return;
+      }
+
+      // 外键约束冲突 23503：改成「不存在的物体」
+      if (sqlstate === '23503') {
+        res.statusCode = 400;
+        res.end(JSON.stringify({
+          ok: false,
+          error: { code: 'OBJECT_NOT_FOUND', message: '这个物体不存在，无法修改' },
+        }));
+        return;
+      }
 
       // 目标行不存在：PostgREST 会返回 200 但空数组（更新 0 行）
       const updated = Array.isArray(result.body) ? result.body[0] : null;
