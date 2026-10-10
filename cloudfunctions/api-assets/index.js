@@ -22,7 +22,7 @@ const server = http.createServer(async (req, res) => {
     res.statusCode = 405;
     res.end(JSON.stringify({
       ok: false,
-      error: { code: 'METHOD_NOT_ALLOWED', message: 'Only GET is supported' },
+      error: { code: 'METHOD_NOT_ALLOWED', message: '这个接口只支持 GET 请求' },
     }));
     return;
   }
@@ -46,11 +46,13 @@ const server = http.createServer(async (req, res) => {
     res.statusCode = 200;
     res.end(JSON.stringify({ ok: true, data: result.body }));
   } catch (err) {
+    // 原始错误只留在服务端日志，方便排障；返回给用户的是中文人话
+    console.error('[api-assets] query failed:', err && err.message);
     res.statusCode = 500;
     res.end(
       JSON.stringify({
         ok: false,
-        error: { code: 'DB_QUERY_FAILED', message: String((err && err.message) || err) },
+        error: { code: 'DB_QUERY_FAILED', message: '读取素材失败，请稍后重试' },
       })
     );
   }

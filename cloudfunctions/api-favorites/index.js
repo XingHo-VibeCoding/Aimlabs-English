@@ -77,11 +77,12 @@ const server = http.createServer(async (req, res) => {
       res.statusCode = 200;
       res.end(JSON.stringify({ ok: true, data: result.body }));
     } catch (err) {
+      console.error('[api-favorites] GET failed:', err && err.message);
       res.statusCode = 500;
       res.end(
         JSON.stringify({
           ok: false,
-          error: { code: 'DB_QUERY_FAILED', message: String((err && err.message) || err) },
+          error: { code: 'DB_QUERY_FAILED', message: '读取收藏失败，请稍后重试' },
         })
       );
     }
@@ -157,10 +158,7 @@ const server = http.createServer(async (req, res) => {
         res.end(
           JSON.stringify({
             ok: false,
-            error: {
-              code: 'DB_INSERT_FAILED',
-              message: String((result.body && result.body.message) || `gateway HTTP ${result.status}`),
-            },
+            error: { code: 'DB_INSERT_FAILED', message: '收藏失败，请稍后重试' },
           })
         );
         return;
@@ -176,11 +174,12 @@ const server = http.createServer(async (req, res) => {
         })
       );
     } catch (err) {
+      console.error('[api-favorites] POST failed:', err && err.message);
       res.statusCode = 500;
       res.end(
         JSON.stringify({
           ok: false,
-          error: { code: 'DB_INSERT_FAILED', message: String((err && err.message) || err) },
+          error: { code: 'DB_INSERT_FAILED', message: '收藏失败，请稍后重试' },
         })
       );
     }
@@ -244,7 +243,7 @@ const server = http.createServer(async (req, res) => {
         res.statusCode = 500;
         res.end(JSON.stringify({
           ok: false,
-          error: { code: 'DB_UPDATE_FAILED', message: String((result.body && result.body.message) || `gateway HTTP ${result.status}`) },
+          error: { code: 'DB_UPDATE_FAILED', message: '修改收藏失败，请稍后重试' },
         }));
         return;
       }
@@ -253,8 +252,9 @@ const server = http.createServer(async (req, res) => {
       res.statusCode = 200;
       res.end(JSON.stringify({ ok: true, data: updated }));
     } catch (err) {
+      console.error('[api-favorites] PATCH failed:', err && err.message);
       res.statusCode = 500;
-      res.end(JSON.stringify({ ok: false, error: { code: 'DB_UPDATE_FAILED', message: String((err && err.message) || err) } }));
+      res.end(JSON.stringify({ ok: false, error: { code: 'DB_UPDATE_FAILED', message: '修改收藏失败，请稍后重试' } }));
     }
     return;
   }
@@ -289,7 +289,7 @@ const server = http.createServer(async (req, res) => {
         res.statusCode = 500;
         res.end(JSON.stringify({
           ok: false,
-          error: { code: 'DB_DELETE_FAILED', message: String((result.body && result.body.message) || `gateway HTTP ${result.status}`) },
+          error: { code: 'DB_DELETE_FAILED', message: '删除收藏失败，请稍后重试' },
         }));
         return;
       }
@@ -298,8 +298,9 @@ const server = http.createServer(async (req, res) => {
       res.statusCode = 200;
       res.end(JSON.stringify({ ok: true, data: updated }));
     } catch (err) {
+      console.error('[api-favorites] DELETE failed:', err && err.message);
       res.statusCode = 500;
-      res.end(JSON.stringify({ ok: false, error: { code: 'DB_DELETE_FAILED', message: String((err && err.message) || err) } }));
+      res.end(JSON.stringify({ ok: false, error: { code: 'DB_DELETE_FAILED', message: '删除收藏失败，请稍后重试' } }));
     }
     return;
   }
