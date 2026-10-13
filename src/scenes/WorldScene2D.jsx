@@ -1,5 +1,13 @@
 import { useEffect, useRef } from 'react'
-import { parseDescription } from '../ai/dictionary.js'
+import { parseDescription, COLORS } from '../ai/dictionary.js'
+import {
+  resolveSprite,
+  variantCount,
+  getSprite,
+  requestSprite,
+  spriteReady,
+  PLAYER,
+} from '../sprites/spriteRegistry.js'
 
 /**
  * WorldScene2D：2.5D 像素游戏场景（纯 Canvas，零依赖）
@@ -31,323 +39,78 @@ function colorCss(n) {
   return COLOR_MAP[n] || '#' + (n || 0).toString(16).padStart(6, '0')
 }
 
-// 哪些物体会阻挡主角通行（碰撞体）；花/云/蘑菇等矮的不挡
+// 色值 → 颜色词（属性面板改色时反查，供贴图变体命中）
+const HEX_TO_WORD = Object.fromEntries(
+  Object.entries(COLORS).map(([w, hex]) => [hex, w])
+)
+function colorWordFromHex(hex) {
+  return HEX_TO_WORD[hex] || ''
+}
+
+// 哪些物体会阻挡主角通行（碰撞体）；花/草/蘑菇/灌木等矮的不挡
 const BLOCKING_TYPES = {
-  tree: true, house: true, rock: true, mountain: true,
-  castle: true, tower: true, bridge: true, fence: true,
-  lamp: true, car: true, boat: true,
+  tree: true, house: true, rock: true,
+  tower: true, bridge: true, fence: true,
+  boat: true, barn: true, shed: true, greenhouse: true, goldclock: true,
 }
 
 // 可互动物体（靠近按 E 触发）
 const INTERACTABLE_TYPES = {
-  lamp: true,   // 开关灯
   flower: true, // 浇水开花
 }
 
 // 一天时长（毫秒），60 秒 = 一个昼夜循环
 const DAY_LENGTH = 60000
 
-// 每种物体的像素占位画法（色块拼出轮廓，后面可换成真像素图）
+// 物体贴图渲染：几何画法已全部退役（2026-10 素材大整合）
+// 流程：resolveSprite 算出贴图路径 → 未加载先请求并画占位 → 加载完成画图
+// 兜底：没有任何贴图（类型失效）画半透明方块，绝不空白、绝不白屏
 function drawObject(ctx, obj, time) {
-  const { type, color, scale, variant } = obj.userData
-  const s = (obj.scale || 1) * TILE * 0.8
+  const { scale = 1 } = obj.userData
   const x = obj.x * TILE
   const y = obj.y * TILE
-  const c = colorCss(color)
-  const bob = obj.userData.type === 'cloud' ? Math.sin(time * 0.002 + x) * 2 : 0
-  ctx.save()
-  ctx.translate(x + TILE / 2, y + TILE + bob)
-  ctx.scale(scale, scale)
-
-  switch (type) {
-    case 'tree': {
-      if (variant === 1) { // 松树
-        ctx.fillStyle = '#8d6e63'; ctx.fillRect(-3, -12, 6, 12)
-        ctx.fillStyle = c
-        ctx.beginPath(); ctx.moveTo(0, -26); ctx.lineTo(-10, -10); ctx.lineTo(10, -10); ctx.closePath(); ctx.fill()
-        ctx.beginPath(); ctx.moveTo(0, -34); ctx.lineTo(-7, -20); ctx.lineTo(7, -20); ctx.closePath(); ctx.fill()
-      } else if (variant === 2) { // 塔形
-        ctx.fillStyle = '#8d6e63'; ctx.fillRect(-2, -14, 4, 14)
-        ctx.fillStyle = c
-        ctx.fillRect(-8, -20, 16, 6)
-        ctx.fillRect(-6, -28, 12, 8)
-        ctx.fillRect(-4, -36, 8, 8)
-      } else { // 圆冠
-        ctx.fillStyle = '#8d6e63'; ctx.fillRect(-3, -10, 6, 10)
-        ctx.fillStyle = c; ctx.beginPath(); ctx.arc(0, -16, 11, 0, Math.PI * 2); ctx.fill()
-      }
-      break
-    }
-    case 'house': {
-      if (variant === 1) { // 平顶+烟囱
-        ctx.fillStyle = c; ctx.fillRect(-14, -20, 28, 20)
-        ctx.fillStyle = '#616161'; ctx.fillRect(-15, -24, 30, 4)
-        ctx.fillStyle = '#b71c1c'; ctx.fillRect(6, -32, 6, 10)
-      } else { // 尖顶
-        ctx.fillStyle = c; ctx.fillRect(-12, -18, 24, 18)
-        ctx.fillStyle = '#b71c1c'
-        ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(-14, -18); ctx.lineTo(14, -18); ctx.closePath(); ctx.fill()
-      }
-      break
-    }
-    case 'rock': {
-      if (variant === 1) { // 尖石
-        ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(-8, 0); ctx.lineTo(8, 0); ctx.closePath(); ctx.fill()
-      } else { // 圆石
-        ctx.fillStyle = c; ctx.beginPath(); ctx.arc(0, -8, 9, 0, Math.PI * 2); ctx.fill()
-      }
-      break
-    }
-    case 'mountain': {
-      if (variant === 1) { // 土山
-        ctx.fillStyle = '#8d6e63'; ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(-14, 0); ctx.lineTo(14, 0); ctx.closePath(); ctx.fill()
-      } else { // 雪山
-        ctx.fillStyle = '#6d7f8c'; ctx.beginPath(); ctx.moveTo(0, -24); ctx.lineTo(-12, 0); ctx.lineTo(12, 0); ctx.closePath(); ctx.fill()
-        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(0, -24); ctx.lineTo(-5, -14); ctx.lineTo(5, -14); ctx.closePath(); ctx.fill()
-      }
-      break
-    }
-    case 'castle': {
-      ctx.fillStyle = '#9e9e9e'; ctx.fillRect(-12, -14, 24, 14)
-      ctx.fillStyle = c; ctx.fillRect(-8, -24, 16, 10)
-      ctx.fillStyle = '#b71c1c'; ctx.beginPath(); ctx.moveTo(0, -34); ctx.lineTo(-10, -24); ctx.lineTo(10, -24); ctx.closePath(); ctx.fill()
-      break
-    }
-    case 'tower': {
-      ctx.fillStyle = c; ctx.fillRect(-6, -28, 12, 28)
-      ctx.fillStyle = '#b71c1c'; ctx.beginPath(); ctx.moveTo(0, -38); ctx.lineTo(-8, -28); ctx.lineTo(8, -28); ctx.closePath(); ctx.fill()
-      break
-    }
-    case 'bridge': {
-      ctx.fillStyle = '#8d6e63'; ctx.fillRect(-18, -6, 36, 6)
-      ctx.fillStyle = c; ctx.fillRect(-18, -12, 36, 4)
-      break
-    }
-    case 'flower': {
-      ctx.fillStyle = '#4caf50'; ctx.fillRect(-2, -12, 4, 12)
-      const bloomed = obj.userData.bloomed
-      const fc = bloomed ? '#ff7043' : c // 开花后更鲜艳
-      ctx.fillStyle = fc
-      const pr = bloomed ? 8 : 6
-      ctx.beginPath(); ctx.arc(0, -14, pr, 0, Math.PI * 2); ctx.fill()
-      if (bloomed) {
-        ctx.fillStyle = '#fff59d'
-        ctx.beginPath(); ctx.arc(0, -14, 3, 0, Math.PI * 2); ctx.fill()
-      }
-      break
-    }
-    case 'cloud': {
-      ctx.fillStyle = '#fff'
-      ctx.beginPath(); ctx.arc(-7, -8, 6, 0, Math.PI * 2); ctx.fill()
-      ctx.beginPath(); ctx.arc(0, -12, 7, 0, Math.PI * 2); ctx.fill()
-      ctx.beginPath(); ctx.arc(7, -8, 6, 0, Math.PI * 2); ctx.fill()
-      break
-    }
-    case 'car': {
-      ctx.fillStyle = c; ctx.fillRect(-14, -12, 28, 12)
-      ctx.fillStyle = '#42a5f5'; ctx.fillRect(-6, -18, 12, 6)
-      ctx.fillStyle = '#212121'
-      ctx.beginPath(); ctx.arc(-8, 0, 4, 0, Math.PI * 2); ctx.fill()
-      ctx.beginPath(); ctx.arc(8, 0, 4, 0, Math.PI * 2); ctx.fill()
-      break
-    }
-    case 'boat': {
-      ctx.fillStyle = c; ctx.fillRect(-14, -8, 28, 8)
-      ctx.fillStyle = '#8d6e63'; ctx.fillRect(-2, -22, 4, 14)
-      break
-    }
-    case 'mushroom': {
-      ctx.fillStyle = '#f5f5dc'; ctx.fillRect(-4, -10, 8, 10)
-      ctx.fillStyle = c; ctx.beginPath(); ctx.arc(0, -12, 10, Math.PI, 0); ctx.fill()
-      break
-    }
-    case 'fence': {
-      ctx.fillStyle = '#8d6e63'
-      ctx.fillRect(-16, -14, 4, 14); ctx.fillRect(-2, -14, 4, 14); ctx.fillRect(12, -14, 4, 14)
-      ctx.fillRect(-16, -12, 32, 3); ctx.fillRect(-16, -6, 32, 3)
-      break
-    }
-    case 'lamp': {
-      ctx.fillStyle = '#424242'; ctx.fillRect(-3, -24, 6, 24)
-      const lit = obj.userData.on
-      if (lit) {
-        // 光晕
-        const glow = ctx.createRadialGradient(0, -28, 2, 0, -28, 16)
-        glow.addColorStop(0, 'rgba(255,213,79,0.9)')
-        glow.addColorStop(1, 'rgba(255,213,79,0)')
-        ctx.fillStyle = glow
-        ctx.beginPath(); ctx.arc(0, -28, 16, 0, Math.PI * 2); ctx.fill()
-      }
-      ctx.fillStyle = lit ? '#ffe082' : '#9e9e9e'
-      ctx.beginPath(); ctx.arc(0, -28, 6, 0, Math.PI * 2); ctx.fill()
-      break
-    }
-    case 'cat':
-    case 'dog': {
-      ctx.fillStyle = c; ctx.fillRect(-10, -12, 20, 12)
-      ctx.beginPath(); ctx.arc(0, -16, 7, 0, Math.PI * 2); ctx.fill()
-      if (type === 'cat') {
-        ctx.beginPath(); ctx.moveTo(-6, -20); ctx.lineTo(-4, -26); ctx.lineTo(-1, -20); ctx.closePath(); ctx.fill()
-        ctx.beginPath(); ctx.moveTo(1, -20); ctx.lineTo(4, -26); ctx.lineTo(6, -20); ctx.closePath(); ctx.fill()
-      } else {
-        ctx.fillRect(-7, -22, 3, 8); ctx.fillRect(4, -22, 3, 8)
-      }
-      break
-    }
-    case 'rabbit': {
-      // 兔子：长耳朵 + 圆身
-      ctx.fillStyle = c; ctx.fillRect(-9, -10, 18, 10)
-      ctx.beginPath(); ctx.arc(0, -14, 7, 0, Math.PI * 2); ctx.fill()
-      ctx.fillStyle = c
-      ctx.fillRect(-5, -26, 4, 12); ctx.fillRect(1, -26, 4, 12) // 两只竖耳
-      ctx.fillStyle = '#fff'
-      ctx.fillRect(-4, -24, 2, 6); ctx.fillRect(2, -24, 2, 6) // 耳内白
-      ctx.fillStyle = '#212121'
-      ctx.fillRect(-3, -15, 2, 2); ctx.fillRect(1, -15, 2, 2) // 眼
-      break
-    }
-    case 'bird': {
-      ctx.fillStyle = c; ctx.fillRect(-8, -8, 16, 8)
-      ctx.beginPath(); ctx.arc(2, -12, 6, 0, Math.PI * 2); ctx.fill()
-      ctx.fillStyle = '#ff9800'
-      ctx.beginPath(); ctx.moveTo(8, -12); ctx.lineTo(13, -12); ctx.lineTo(8, -9); ctx.closePath(); ctx.fill() // 喙
-      ctx.fillStyle = '#212121'; ctx.fillRect(3, -13, 2, 2)
-      ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(-8, -8); ctx.lineTo(-14, -12); ctx.lineTo(-8, -5); ctx.closePath(); ctx.fill() // 尾
-      break
-    }
-    case 'fish': {
-      ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(0, -8, 11, 6, 0, 0, Math.PI * 2); ctx.fill()
-      ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(11, -8); ctx.lineTo(17, -12); ctx.lineTo(17, -4); ctx.closePath(); ctx.fill() // 尾
-      ctx.fillStyle = '#212121'; ctx.fillRect(5, -10, 2, 2) // 眼
-      break
-    }
-    case 'bear': {
-      ctx.fillStyle = c; ctx.fillRect(-11, -12, 22, 12)
-      ctx.beginPath(); ctx.arc(0, -17, 8, 0, Math.PI * 2); ctx.fill()
-      ctx.fillStyle = c; ctx.beginPath(); ctx.arc(-7, -22, 3, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(7, -22, 3, 0, Math.PI * 2); ctx.fill() // 圆耳
-      ctx.fillStyle = '#212121'; ctx.fillRect(-3, -18, 2, 2); ctx.fillRect(1, -18, 2, 2)
-      break
-    }
-    case 'snake': {
-      ctx.strokeStyle = c; ctx.lineWidth = 6; ctx.lineCap = 'round'
-      ctx.beginPath(); ctx.moveTo(-10, -4); ctx.quadraticCurveTo(-4, -10, 0, -4); ctx.quadraticCurveTo(4, 2, 10, -4); ctx.stroke()
-      ctx.fillStyle = c; ctx.beginPath(); ctx.arc(11, -4, 4, 0, Math.PI * 2); ctx.fill() // 头
-      ctx.fillStyle = '#212121'; ctx.fillRect(12, -5, 2, 2) // 眼
-      break
-    }
-    case 'butterfly': {
-      ctx.fillStyle = c
-      ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(-8, -16); ctx.lineTo(-8, -4); ctx.closePath(); ctx.fill() // 左翅
-      ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(8, -16); ctx.lineTo(8, -4); ctx.closePath(); ctx.fill() // 右翅
-      ctx.fillStyle = '#5d4037'; ctx.fillRect(-1, -14, 2, 10) // 身体
-      break
-    }
-    case 'apple': {
-      ctx.fillStyle = c; ctx.beginPath(); ctx.arc(0, -8, 9, 0, Math.PI * 2); ctx.fill()
-      ctx.fillStyle = '#5d4037'; ctx.fillRect(-1, -20, 2, 6) // 梗
-      ctx.fillStyle = '#4caf50'; ctx.beginPath(); ctx.arc(-4, -20, 4, 0, Math.PI * 2); ctx.fill() // 叶
-      break
-    }
-    case 'cake': {
-      ctx.fillStyle = c; ctx.fillRect(-12, -14, 24, 14) // 糕体
-      ctx.fillStyle = '#fff'; ctx.fillRect(-12, -18, 24, 4) // 奶油层
-      ctx.fillStyle = '#ff4d4d'; ctx.fillRect(-2, -22, 4, 4) // 顶部装饰
-      break
-    }
-    case 'icecream': {
-      ctx.fillStyle = '#f3a63b'; ctx.beginPath(); ctx.moveTo(0, 6); ctx.lineTo(-7, -6); ctx.lineTo(7, -6); ctx.closePath(); ctx.fill() // 蛋筒
-      ctx.fillStyle = c; ctx.beginPath(); ctx.arc(0, -10, 8, 0, Math.PI * 2); ctx.fill() // 冰球
-      break
-    }
-    case 'pumpkin': {
-      ctx.fillStyle = '#ff9800'; ctx.beginPath(); ctx.arc(0, -8, 10, 0, Math.PI * 2); ctx.fill()
-      ctx.fillStyle = '#5d4037'; ctx.fillRect(-1, -20, 2, 4) // 蒂
-      ctx.fillStyle = '#212121'
-      ctx.fillRect(-4, -9, 2, 2); ctx.fillRect(2, -9, 2, 2); ctx.fillRect(-1, -5, 3, 2) // 鬼脸
-      break
-    }
-    case 'chair': {
-      ctx.fillStyle = c; ctx.fillRect(-8, -12, 16, 3) // 座
-      ctx.fillStyle = c; ctx.fillRect(-8, -22, 3, 10); ctx.fillRect(5, -22, 3, 10) // 靠背竖杆
-      ctx.fillRect(-8, -22, 16, 3) // 靠背横杆
-      ctx.fillRect(-8, -8, 3, 8); ctx.fillRect(5, -8, 3, 8) // 腿
-      break
-    }
-    case 'table': {
-      ctx.fillStyle = c; ctx.fillRect(-14, -10, 28, 4) // 桌面
-      ctx.fillRect(-10, -8, 4, 8); ctx.fillRect(6, -8, 4, 8) // 腿
-      break
-    }
-    case 'bed': {
-      ctx.fillStyle = c; ctx.fillRect(-14, -10, 28, 10) // 床体
-      ctx.fillStyle = '#fff'; ctx.fillRect(-10, -12, 8, 4) // 枕头
-      ctx.fillStyle = c; ctx.fillRect(-14, -12, 28, 2) // 床头
-      break
-    }
-    case 'bench': {
-      ctx.fillStyle = c; ctx.fillRect(-14, -8, 28, 4) // 座板
-      ctx.fillRect(-12, -6, 3, 6); ctx.fillRect(9, -6, 3, 6) // 腿
-      break
-    }
-    case 'mailbox': {
-      ctx.fillStyle = '#8d6e63'; ctx.fillRect(-2, -16, 4, 16) // 柱
-      ctx.fillStyle = c; ctx.fillRect(-7, -22, 14, 8) // 箱体
-      ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(-7, -22); ctx.lineTo(0, -28); ctx.lineTo(7, -22); ctx.closePath(); ctx.fill() // 顶
-      break
-    }
-    case 'sun': {
-      ctx.fillStyle = '#ffd54f'; ctx.beginPath(); ctx.arc(0, -8, 8, 0, Math.PI * 2); ctx.fill()
-      ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 2
-      for (let a = 0; a < 8; a++) { // 光芒
-        const ang = a * Math.PI / 4
-        ctx.beginPath(); ctx.moveTo(Math.cos(ang) * 10, -8 + Math.sin(ang) * 10); ctx.lineTo(Math.cos(ang) * 13, -8 + Math.sin(ang) * 13); ctx.stroke()
-      }
-      break
-    }
-    case 'moon': {
-      ctx.fillStyle = '#fff59d'; ctx.beginPath(); ctx.arc(0, -8, 9, 0, Math.PI * 2); ctx.fill()
-      ctx.fillStyle = '#1a1a2e'; ctx.beginPath(); ctx.arc(4, -11, 7, 0, Math.PI * 2); ctx.fill() // 缺一块成月牙
-      break
-    }
-    case 'star': {
-      ctx.fillStyle = c
-      ctx.beginPath()
-      for (let i = 0; i < 5; i++) {
-        const ang = -Math.PI / 2 + i * 2 * Math.PI / 5
-        const ang2 = ang + Math.PI / 5
-        ctx.lineTo(Math.cos(ang) * 11, -8 + Math.sin(ang) * 11)
-        ctx.lineTo(Math.cos(ang2) * 4.5, -8 + Math.sin(ang2) * 4.5)
-      }
-      ctx.closePath(); ctx.fill()
-      break
-    }
-    case 'snowman': {
-      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill() // 底
-      ctx.beginPath(); ctx.arc(0, -10, 5, 0, Math.PI * 2); ctx.fill() // 中
-      ctx.beginPath(); ctx.arc(0, -17, 3.5, 0, Math.PI * 2); ctx.fill() // 头
-      ctx.fillStyle = '#212121'; ctx.fillRect(-1, -18, 2, 2); ctx.fillRect(1, -18, 2, 2) // 眼
-      ctx.fillStyle = '#ff9800'; ctx.fillRect(-1, -15, 2, 3) // 鼻子
-      break
-    }
-    case 'rainbow': {
-      const bands = ['#ff4d4d', '#ff9800', '#ffd54f', '#4caf50', '#42a5f5', '#ab47bc']
-      bands.forEach((col, i) => {
-        ctx.strokeStyle = col; ctx.lineWidth = 3
-        ctx.beginPath(); ctx.arc(0, 2, 12 - i * 2.5, Math.PI, 0); ctx.stroke()
-      })
-      break
-    }
-    case 'cactus': {
-      ctx.fillStyle = '#4caf50'; ctx.fillRect(-3, -22, 6, 22) // 主干
-      ctx.fillRect(-9, -16, 6, 4); ctx.fillRect(3, -16, 6, 4) // 横枝
-      ctx.fillRect(-8, -22, 4, 6); ctx.fillRect(4, -22, 4, 6) // 竖枝
-      break
-    }
-    default: {
-      ctx.fillStyle = c; ctx.fillRect(-8, -16, 16, 16)
-    }
+  const res = resolveSprite(obj.userData, time)
+  if (!res) {
+    // 类型失效兜底：半透明提示块
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'
+    ctx.fillRect(x + 8, y + 8, TILE - 16, TILE - 16)
+    return
   }
-  ctx.restore()
+  if (res.kind === 'animal') {
+    // 动物：影子 + 4 帧走路动画，锚点=脚底中心
+    ctx.fillStyle = 'rgba(0,0,0,0.2)'
+    ctx.beginPath()
+    ctx.ellipse(x + TILE / 2, y + TILE - 3, 10 * scale, 4 * scale, 0, 0, Math.PI * 2)
+    ctx.fill()
+    drawSprite(ctx, res.src, x + TILE / 2, y + TILE, scale)
+    return
+  }
+  // 静态物体：影子 + 贴图，锚点=底部中心
+  const img = getSprite(res.src)
+  if (img) {
+    const w = img.naturalWidth * scale
+    const h = img.naturalHeight * scale
+    ctx.fillStyle = 'rgba(0,0,0,0.2)'
+    ctx.beginPath()
+    ctx.ellipse(x + TILE / 2, y + TILE - 2, Math.min(w / 2, TILE * 0.9), 4 * scale, 0, 0, Math.PI * 2)
+    ctx.fill()
+  }
+  drawSprite(ctx, res.src, x + TILE / 2, y + TILE, scale)
+}
+
+// 画一张贴图（异步加载：没好就画占位小方块）
+function drawSprite(ctx, src, anchorX, anchorBottomY, scale) {
+  if (!spriteReady(src)) {
+    requestSprite(src)
+    // 占位：小色块，避免闪空白
+    ctx.fillStyle = 'rgba(120,120,120,0.35)'
+    ctx.fillRect(anchorX - 6, anchorBottomY - 12, 12, 12)
+    return
+  }
+  const img = getSprite(src)
+  const w = img.naturalWidth * scale
+  const h = img.naturalHeight * scale
+  ctx.drawImage(img, anchorX - w / 2, anchorBottomY - h, w, h)
 }
 
 // 昼夜色调：按游戏时间算出一个遮罩色（早晨→白天→黄昏→夜晚→循环）
@@ -378,37 +141,33 @@ function applyDayNight(ctx, gameTime) {
   }
 }
 
-// 主角（GOD）：像素小人，2 帧走路动画
+// 主角：Abigail（16x32 贴图，下/右/上三朝向各 4 帧走路动画，左 = 右镜像）
 function drawPlayer(ctx, p, time) {
   const x = p.x * TILE
   const y = p.y * TILE
   const moving = p.moving
-  const frame = moving ? Math.floor(time / 150) % 2 : 0
-  const legOffset = frame === 0 ? 2 : -2
+  const frame = moving ? Math.floor(time / 150) % PLAYER.frames : 0
+  const src = `/sprites/player/${PLAYER.rows[p.dir] || 'r00'}_c0${frame}.png`
   ctx.save()
   ctx.translate(x + TILE / 2, y + TILE)
   // 影子
   ctx.fillStyle = 'rgba(0,0,0,0.25)'
-  ctx.beginPath(); ctx.ellipse(0, 0, 8, 3, 0, 0, Math.PI * 2); ctx.fill()
-  // 腿
-  ctx.fillStyle = '#37474f'
-  ctx.fillRect(-4, -6 + (moving ? legOffset : 0), 3, 6)
-  ctx.fillRect(1, -6 - (moving ? legOffset : 0), 3, 6)
-  // 身体（披风色）
-  ctx.fillStyle = '#5e35b1'
-  ctx.fillRect(-6, -16, 12, 12)
-  // 头
-  ctx.fillStyle = '#ffcc80'
-  ctx.beginPath(); ctx.arc(0, -20, 6, 0, Math.PI * 2); ctx.fill()
-  // 眼睛（朝向）
-  ctx.fillStyle = '#212121'
-  if (p.dir === 'left') { ctx.fillRect(-4, -21, 2, 2) }
-  else if (p.dir === 'right') { ctx.fillRect(2, -21, 2, 2) }
-  else { ctx.fillRect(-3, -21, 2, 2); ctx.fillRect(1, -21, 2, 2) }
-  // 王冠（GOD 标识）
-  ctx.fillStyle = '#ffd54f'
-  ctx.fillRect(-4, -28, 8, 3)
-  ctx.fillRect(-4, -31, 2, 3); ctx.fillRect(0, -32, 2, 4); ctx.fillRect(4, -31, 2, 3)
+  ctx.beginPath()
+  ctx.ellipse(0, -2, 9, 3.5, 0, 0, Math.PI * 2)
+  ctx.fill()
+  // 朝左 = 朝右镜像翻转（星露谷官方做法，省一套素材）
+  if (p.dir === 'left') ctx.scale(-1, 1)
+  if (!spriteReady(src)) {
+    requestSprite(src)
+    ctx.fillStyle = 'rgba(120,120,120,0.35)'
+    ctx.fillRect(-8, -32, 16, 32)
+    ctx.restore()
+    return
+  }
+  const img = getSprite(src)
+  const w = img.naturalWidth * PLAYER.scale
+  const h = img.naturalHeight * PLAYER.scale
+  ctx.drawImage(img, -w / 2, -h, w, h)
   ctx.restore()
 }
 
@@ -441,12 +200,13 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
     }
     stateRef.current = state
 
-    // 预置几个物体（替代旧 3D 的树/房子）
+    // 预置几个物体（全部走贴图素材）
     const preset = [
-      { type: 'tree', color: 0x4caf50, scale: 0.8, variant: 0, x: 3, y: 4 },
-      { type: 'tree', color: 0x66bb6a, scale: 1.2, variant: 0, x: 12, y: 3 },
-      { type: 'house', color: 0xf3a63b, scale: 1, variant: 0, x: 8, y: 8 },
-      { type: 'lamp', color: 0x424242, scale: 1, variant: 0, x: 7, y: 5, on: true },
+      { type: 'tree', color: 0x4caf50, colorWord: '', scale: 1, variant: 0, x: 3, y: 4 },
+      { type: 'tree', color: 0xff9800, colorWord: 'orange', scale: 1, variant: 1, x: 12, y: 3 },
+      { type: 'house', color: 0xf3a63b, colorWord: '', scale: 1, variant: 0, x: 8, y: 8 },
+      { type: 'chicken', color: 0xffd54f, colorWord: 'gold', scale: 1, variant: 0, x: 6, y: 6 },
+      { type: 'flower', color: 0xf48fb1, colorWord: '', scale: 1, variant: 0, x: 7, y: 5 },
     ]
     preset.forEach((o) => state.objects.push({ userData: o, x: o.x, y: o.y, scale: o.scale }))
 
@@ -567,6 +327,10 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
         },
         updateSelected(patch) {
           if (!state.selected) return null
+          // 颜色值 → 颜色词（贴图渲染靠 colorWord 选素材变体）
+          if (patch.color !== undefined) {
+            patch = { ...patch, colorWord: colorWordFromHex(patch.color) }
+          }
           Object.assign(state.selected.userData, patch)
           if (patch.scale !== undefined) state.selected.scale = patch.scale
           state.confirmAt = performance.now() // 变换落定，闪一次确认光
@@ -575,15 +339,17 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
         },
         nextVariant() {
           if (!state.selected) return null
-          const counts = { tree: 3, house: 2, rock: 2, mountain: 2 }
-          const type = state.selected.userData.type
-          const n = counts[type] || 1
+          const ud = state.selected.userData
+          const n = variantCount(ud.type)
           if (n > 1) {
-            state.selected.userData.variant = ((state.selected.userData.variant || 0) + 1) % n
+            ud.variant = ((ud.variant || 0) + 1) % n
+            ud.colorWord = '' // 手动换变体后，解除颜色词锁定
             state.confirmAt = performance.now() // 换变体落定，闪确认光
-            if (sceneRef.current.onSelectChange) sceneRef.current.onSelectChange({ ...state.selected.userData })
+            if (sceneRef.current.onSelectChange) {
+              sceneRef.current.onSelectChange({ ...ud })
+            }
           }
-          return state.selected.userData
+          return { ...ud }
         },
         // 返回场景里所有物体的快照（供保存用）
         getObjects() {
@@ -600,9 +366,7 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
     // 切换可互动物体的状态（M12）
     function toggleInteractable(obj) {
       if (!obj) return
-      if (obj.userData.type === 'lamp') {
-        obj.userData.on = !obj.userData.on
-      } else if (obj.userData.type === 'flower') {
+      if (obj.userData.type === 'flower') {
         obj.userData.bloomed = true // 浇水后开花
       }
     }

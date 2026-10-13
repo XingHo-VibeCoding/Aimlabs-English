@@ -13,3 +13,10 @@ dist/
 # 系统残留文件
 .DS_Store
 Thumbs.db
+
+# 星露谷解包素材（版权归 ConcernedApe，仅本地开发占位 + LoRA 训练数据，绝不提交分发）
+assets/sprites/
+public/sprites/
+
+# 发布版本快照（回滚演练用的 dist 备份，含版权素材，绝不提交）
+release-snapshots/

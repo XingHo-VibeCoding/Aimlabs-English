@@ -1,15 +1,15 @@
 /**
- * dictionary.js — 词典兜底（D2 定稿：本地词典为主，数据不出本机）
+ * dictionary.js — 词典（素材大整合版）
  *
- * 这是「基础模式」的核心：不下载任何 AI 模型，纯靠一个内置词典，
- * 把英文描述解析成「素材类型 + 颜色 + 尺寸」参数。
+ * 输入英文 → 解析成「类型 + 颜色词 + 大小」。
+ * 颜色词不再改色，而是**选对应素材变体**（a blue chicken → 蓝鸡素材）；
+ * 没有对应素材的颜色保持原词交给场景兜底。
  *
- * 扩展方式：想认识新词，直接往下面三个对象里加条目即可——
- *   COLORS 加颜色词、TYPES 加素材类型（需同时在 WorldScene.jsx 的 BUILDERS 里登记造物函数）、SIZES 加大小词。
- * 本期只认少数预设词，Week 2 接上本地小模型后再扩展。
+ * 2026-10 素材整合：删除全部无素材类型（等 LoRA 自产素材后补回），
+ * 新增鸡/牛/猪/羊/山羊/鸵鸟/恐龙 + 谷仓/棚屋/温室/黄金钟/灌木/草丛。
  */
 
-// 颜色词 → Three.js 色值
+// 颜色词 → 色值（展示用；素材命中见 spriteRegistry 的 COLOR_VARIANT）
 const COLORS = {
   red: 0xff4d4d,
   green: 0x4caf50,
@@ -26,64 +26,58 @@ const COLORS = {
   cyan: 0x26c6da,
   teal: 0x009688,
   gold: 0xffc107,
+  golden: 0xffc107,
   silver: 0xc0c0c0,
   violet: 0x7c4dff,
   dark: 0x263238,
   light: 0xeeeeee,
 }
 
-// 素材类型 → 生成方式
+// 素材类型 → 注册名（须与 spriteRegistry 的 SPRITES/ANIMALS 对齐）
 const TYPES = {
   tree: 'tree',
   trees: 'tree',
   house: 'house',
   houses: 'house',
   home: 'house',
-  cube: 'cube',
-  box: 'cube',
-  block: 'cube',
-  ball: 'ball',
-  sphere: 'ball',
   rock: 'rock',
   stone: 'rock',
   cat: 'cat',
+  kitty: 'cat',
   dog: 'dog',
-  castle: 'castle',
+  puppy: 'dog',
+  rabbit: 'rabbit',
+  bunny: 'rabbit',
+  fish: 'fish',
   tower: 'tower',
   bridge: 'bridge',
   flower: 'flower',
-  mountain: 'mountain',
-  hill: 'mountain',
-  cloud: 'cloud',
-  car: 'car',
-  boat: 'boat',
-  ship: 'boat',
   mushroom: 'mushroom',
   fence: 'fence',
-  lamp: 'lamp',
-  rabbit: 'rabbit',
-  bunny: 'rabbit',
-  bird: 'bird',
-  fish: 'fish',
-  bear: 'bear',
-  snake: 'snake',
-  butterfly: 'butterfly',
-  apple: 'apple',
-  cake: 'cake',
-  icecream: 'icecream',
-  'ice cream': 'icecream',
-  pumpkin: 'pumpkin',
+  boat: 'boat',
+  ship: 'boat',
+  bush: 'bush',
+  shrub: 'bush',
+  grass: 'grass',
+  chicken: 'chicken',
+  hen: 'chicken',
+  cow: 'cow',
+  pig: 'pig',
+  piglet: 'pig',
+  sheep: 'sheep',
+  lamb: 'sheep',
+  goat: 'goat',
+  ostrich: 'ostrich',
+  dinosaur: 'dinosaur',
+  dino: 'dinosaur',
+  barn: 'barn',
+  shed: 'shed',
+  greenhouse: 'greenhouse',
+  clock: 'goldclock',
   chair: 'chair',
   table: 'table',
   bed: 'bed',
   bench: 'bench',
-  mailbox: 'mailbox',
-  sun: 'sun',
-  moon: 'moon',
-  star: 'star',
-  snowman: 'snowman',
-  rainbow: 'rainbow',
-  cactus: 'cactus',
 }
 
 // 尺寸词 → 缩放倍数
@@ -100,30 +94,35 @@ const SIZES = {
   wide: 1.6,
 }
 
-/**
- * 解析英文描述 → 参数对象；解析不出时返回 null（触发"基础模式"提示）
- * @param {string} text 用户输入，如 "a red tree" / "a big blue house"
- * @returns {{type: string, color: number, scale: number} | null}
- */
-export function parseDescription(text) {
-  if (!text) return null
-  const words = text.toLowerCase().split(/[^a-z]+/).filter(Boolean)
-  if (words.length === 0) return null
-
+function parseWords(text) {
+  const words = (text || '').toLowerCase().split(/[^a-z]+/).filter(Boolean)
   let type = null
   let color = null
+  let colorWord = ''
   let scale = 1
-
   for (const w of words) {
-    if (COLORS[w] !== undefined) color = COLORS[w]
+    if (COLORS[w] !== undefined) { color = COLORS[w]; colorWord = w }
     if (SIZES[w] !== undefined) scale = SIZES[w]
     if (TYPES[w]) type = TYPES[w]
   }
+  return { words, type, color, colorWord, scale }
+}
 
-  if (!type) return null // 没认出任何素材类型 → 超出词典能力
-  if (color === null) color = 0x4caf50 // 默认绿色（和树一个色）
-
-  return { type, color, scale }
+/**
+ * 解析英文描述 → 参数对象；解析不出时返回 null
+ * @returns {{type: string, color: number, colorWord: string, scale: number, variant: number} | null}
+ */
+export function parseDescription(text) {
+  if (!text) return null
+  const { type, color, colorWord, scale } = parseWords(text)
+  if (!type) return null
+  return {
+    type,
+    color: color === null ? 0x4caf50 : color,
+    colorWord,
+    scale,
+    variant: 0,
+  }
 }
 
 /** 判断输入里是否至少有一个能认出的词（用于提示） */
@@ -136,99 +135,73 @@ export function hasKnownWord(text) {
 }
 
 /**
- * 生成候选变体列表（供"输入 → 候选栏 → 拖拽"交互用）
- * 解析出类型后，按用户指定的颜色/大小生成一组候选，让用户挑。
- * 若用户没指定颜色，就给出几个常见配色；没指定大小就给几个尺寸。
+ * 生成候选变体列表（输入 → 候选栏 → 拖拽）
+ * 有颜色词就锁定该色变体；没给就轮换不同素材变体 + 配色。
  */
 export function buildCandidates(text) {
-  const words = (text || '').toLowerCase().split(/[^a-z]+/).filter(Boolean)
-  let type = null
-  let color = null
-  let scale = 1
-  for (const w of words) {
-    if (COLORS[w] !== undefined) color = COLORS[w]
-    if (SIZES[w] !== undefined) scale = SIZES[w]
-    if (TYPES[w]) type = TYPES[w]
-  }
-  if (!type) return [] // 认不出类型 → 无候选
+  const { type, color, colorWord, scale } = parseWords(text)
+  if (!type) return []
 
-  // 颜色候选：用户指定了就用它（配深浅两档）；没指定就给一组常用色
-  const colorOptions = color !== null
-    ? [color, color]
-    : [0xff4d4d, 0x4caf50, 0x42a5f5, 0xffd54f, 0xf48fb1]
+  const colorWords = colorWord ? [colorWord, colorWord, colorWord] : ['', '', '']
+  const colorValues =
+    color !== null ? [color, color, color] : [0x4caf50, 0xff9800, 0x42a5f5]
+  const scales = scale !== 1 ? [scale, scale, scale] : [1, 0.6, 1.8]
 
-  // 尺寸候选：用户指定了大小就用它（配一个更小档）；没指定给三档
-  const scaleOptions = scale !== 1
-    ? [scale, Math.max(0.4, scale * 0.6)]
-    : [1, 0.6, 1.8]
-
-  const candidates = []
-  colorOptions.forEach((c, ci) => {
-    scaleOptions.forEach((s, si) => {
-      candidates.push({
-        id: `${type}-${ci}-${si}`,
-        type,
-        color: c,
-        scale: s,
-      })
-    })
-  })
-  return candidates
+  return colorWords.map((cw, i) => ({
+    id: `${type}-${i}`,
+    type,
+    color: colorValues[i],
+    colorWord: cw,
+    scale: scales[i],
+    variant: i, // 没颜色词时靠 variant 轮换素材变体
+  }))
 }
 
-/** 把类型名翻译成「中文 + 英文」展示名（帮助页 / 候选栏用） */
+/** 类型 → 展示名 */
 export function typeLabel(type) {
   const names = {
     tree: '树 / Tree',
     house: '房子 / House',
-    cube: '方块 / Cube',
-    ball: '球 / Ball',
     rock: '石头 / Rock',
     cat: '猫 / Cat',
     dog: '狗 / Dog',
-    castle: '城堡 / Castle',
+    rabbit: '兔子 / Rabbit',
+    fish: '鱼 / Fish',
     tower: '塔 / Tower',
     bridge: '桥 / Bridge',
     flower: '花 / Flower',
-    mountain: '山 / Mountain',
-    cloud: '云 / Cloud',
-    car: '车 / Car',
-    boat: '船 / Boat',
     mushroom: '蘑菇 / Mushroom',
     fence: '栅栏 / Fence',
-    lamp: '灯 / Lamp',
-    rabbit: '兔子 / Rabbit',
-    bird: '鸟 / Bird',
-    fish: '鱼 / Fish',
-    bear: '熊 / Bear',
-    snake: '蛇 / Snake',
-    butterfly: '蝴蝶 / Butterfly',
-    apple: '苹果 / Apple',
-    cake: '蛋糕 / Cake',
-    icecream: '冰淇淋 / Ice cream',
-    pumpkin: '南瓜 / Pumpkin',
+    boat: '船 / Boat',
+    bush: '灌木 / Bush',
+    grass: '草丛 / Grass',
+    chicken: '鸡 / Chicken',
+    cow: '牛 / Cow',
+    pig: '猪 / Pig',
+    sheep: '羊 / Sheep',
+    goat: '山羊 / Goat',
+    ostrich: '鸵鸟 / Ostrich',
+    dinosaur: '恐龙 / Dinosaur',
+    barn: '谷仓 / Barn',
+    shed: '棚屋 / Shed',
+    greenhouse: '温室 / Greenhouse',
+    goldclock: '黄金钟 / Gold Clock',
     chair: '椅子 / Chair',
     table: '桌子 / Table',
     bed: '床 / Bed',
     bench: '长椅 / Bench',
-    mailbox: '邮箱 / Mailbox',
-    sun: '太阳 / Sun',
-    moon: '月亮 / Moon',
-    star: '星星 / Star',
-    snowman: '雪人 / Snowman',
-    rainbow: '彩虹 / Rainbow',
-    cactus: '仙人掌 / Cactus',
   }
   return names[type] || type
 }
 
-/** 颜色值 → 中文名（属性面板用） */
+/** 颜色值 → 中文名 */
 export function colorLabel(hex) {
   const map = {
     0xff4d4d: '红', 0x4caf50: '绿', 0x42a5f5: '蓝', 0xffd54f: '黄',
     0xf48fb1: '粉', 0xab47bc: '紫', 0xff9800: '橙', 0xffffff: '白',
     0x424242: '黑', 0x8d6e63: '棕', 0x9e9e9e: '灰', 0x26c6da: '青',
     0x009688: '墨绿', 0xffc107: '金', 0xc0c0c0: '银', 0x7c4dff: '紫罗兰',
+    0xeeeeee: '浅色', 0x263238: '深色',
   }
   return map[hex] || '自定义'
 }
