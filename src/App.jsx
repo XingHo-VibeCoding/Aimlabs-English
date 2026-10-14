@@ -4,6 +4,7 @@ import WorldScene2D from './scenes/WorldScene2D.jsx'
 import HomePage from './pages/HomePage.jsx'
 import MyWorldView from './pages/MyWorldView.jsx'
 import { buildCandidates, typeLabel, colorLabel } from './ai/dictionary.js'
+import { getPreviewSrc } from './sprites/spriteRegistry.js'
 import { writeSave } from './utils/saveStorage.js'
 import { readFontScale, writeFontScale, FONT_SCALE_MIN, FONT_SCALE_MAX } from './utils/fontScale.js'
 
@@ -50,6 +51,8 @@ function EditorPage({ fontScale, onFontScale }) {
   const [sideWidth, setSideWidth] = useState(280) // 右侧栏宽度，可拖动分隔线调整
   const [saveToast, setSaveToast] = useState('') // 保存提醒文字，空=不显示
   const [isFullscreen, setIsFullscreen] = useState(false) // 是否处于浏览器全屏
+  const [sideOpen, setSideOpen] = useState(false) // 手机端：底部抽屉是否展开（桌面端恒显示，不用它）
+  const [detail, setDetail] = useState(null) // 候选卡片详情：当前查看的候选对象（点卡片弹出）
 
   // 一键全屏：进入/退出浏览器全屏（用原生 Fullscreen API，零依赖）
   function toggleFullscreen() {
@@ -140,6 +143,18 @@ function EditorPage({ fontScale, onFontScale }) {
     }
   }
 
+  // 触屏放置：把候选物体放到主角脚下（替代拖拽，手机端用）
+  function placeCandidate(candidate) {
+    if (!sceneRef.current) return
+    const pos = sceneRef.current.getPlayerPos()
+    const obj = sceneRef.current.spawn(candidate, pos)
+    sceneRef.current.setHoverPoint(0, 0, false)
+    setCandidates([])
+    setSelected({ ...obj.userData })
+    setDetail(null)
+    setMessage('已放置 ' + typeLabel(candidate.type) + ' · Placed ' + typeLabel(candidate.type))
+  }
+
   function deleteSelected() {
     if (sceneRef.current && selected) {
       const done = sceneRef.current.deleteSelected()
@@ -181,6 +196,14 @@ function EditorPage({ fontScale, onFontScale }) {
   function changeStyle() {
     if (sceneRef.current && selected) {
       sceneRef.current.nextVariant()
+    }
+  }
+
+  // 微调选中物体位置（上下左右，每次 1 格）
+  function nudgeSelected(dx, dy) {
+    if (sceneRef.current && selected) {
+      const pos = sceneRef.current.moveSelected(dx, dy)
+      if (pos) setSelected((s) => ({ ...s, x: pos.x, y: pos.y }))
     }
   }
 
@@ -240,7 +263,16 @@ function EditorPage({ fontScale, onFontScale }) {
 
         <div className="editor-resizer" onMouseDown={startResize} title="拖动调整宽度 · Drag to resize" />
 
-        <div className="editor-side" style={{ width: sideWidth }}>
+        {/* 手机端抽屉把手：窄屏时点它开合底部抽屉（桌面端隐藏） */}
+        <button
+          className="editor-drawer-toggle"
+          onClick={() => setSideOpen((v) => !v)}
+          aria-label="打开或收起生成栏"
+        >
+          {sideOpen ? '收起 · 收起生成栏 ▾' : '生成栏 · 展开 ▴'}
+        </button>
+
+        <div className={"editor-side" + (sideOpen ? ' open' : '')} style={{ width: sideWidth }}>
           <span className="editor-hint">WASD/方向键移动 · 输入英文造物 · 点击物体编辑</span>
           <div className="editor-input">
             <input
@@ -267,10 +299,14 @@ function EditorPage({ fontScale, onFontScale }) {
                     className="candidate-card"
                     draggable
                     onDragStart={(e) => e.dataTransfer.setData('text/plain', i)}
+                    onClick={() => setDetail(c)}
+                    title="点击查看详情 · 拖拽可放置"
                   >
-                    <div
-                      className="candidate-swatch"
-                      style={{ backgroundColor: colorHex(c.color) }}
+                    <img
+                      className="candidate-thumb"
+                      src={getPreviewSrc(c.type, c.colorWord, c.variant)}
+                      alt={typeLabel(c.type)}
+                      loading="lazy"
                     />
                     <div className="candidate-info">
                       <span className="candidate-type">{typeLabel(c.type)}</span>
@@ -312,6 +348,18 @@ function EditorPage({ fontScale, onFontScale }) {
                   <button className="scale-btn" onClick={() => changeScale(Math.min(3, selected.scale + 0.1))}>+</button>
                 </div>
               </div>
+              <div className="prop-row prop-row-pos">
+                <span className="prop-label">位置 Pos</span>
+                <div className="pos-controls">
+                  <span className="pos-coord">x {selected.x != null ? selected.x.toFixed(1) : '—'} · y {selected.y != null ? selected.y.toFixed(1) : '—'}</span>
+                  <div className="pos-dpad">
+                    <button className="pos-btn" onClick={() => nudgeSelected(0, -1)} title="上移">▲</button>
+                    <button className="pos-btn" onClick={() => nudgeSelected(-1, 0)} title="左移">◀</button>
+                    <button className="pos-btn" onClick={() => nudgeSelected(1, 0)} title="右移">▶</button>
+                    <button className="pos-btn" onClick={() => nudgeSelected(0, 1)} title="下移">▼</button>
+                  </div>
+                </div>
+              </div>
               <button className="prop-btn prop-style" onClick={changeStyle}>
                 换样式 · Restyle {variantCount(selected.type) > 1 ? `（${(selected.variant || 0) + 1}/${variantCount(selected.type)}）` : ''}
               </button>
@@ -324,6 +372,14 @@ function EditorPage({ fontScale, onFontScale }) {
       </div>
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+
+      {detail && (
+        <CandidateDetailModal
+          candidate={detail}
+          onPlace={placeCandidate}
+          onClose={() => setDetail(null)}
+        />
+      )}
     </div>
   )
 }
@@ -335,6 +391,55 @@ function variantCount(type) {
 
 function colorHex(num) {
   return '#' + num.toString(16).padStart(6, '0')
+}
+
+// 候选卡片详情弹窗：预览图 + 参数 + 放到主角脚下
+function CandidateDetailModal({ candidate, onPlace, onClose }) {
+  if (!candidate) return null
+  const preview = getPreviewSrc(candidate.type, candidate.colorWord, candidate.variant)
+  return (
+    <div className="help-mask" onClick={onClose}>
+      <div className="help-card detail-card" onClick={(e) => e.stopPropagation()}>
+        <div className="help-header">
+          <h2>物体详情 · Details</h2>
+          <button className="help-close" onClick={onClose}>×</button>
+        </div>
+        <div className="detail-body">
+          <div className="detail-preview">
+            {preview ? (
+              <img src={preview} alt={typeLabel(candidate.type)} />
+            ) : (
+              <div className="detail-preview-fallback" style={{ backgroundColor: colorHex(candidate.color) }} />
+            )}
+          </div>
+          <dl className="detail-params">
+            <div className="detail-row">
+              <dt>类型</dt>
+              <dd>{typeLabel(candidate.type)}</dd>
+            </div>
+            <div className="detail-row">
+              <dt>颜色</dt>
+              <dd>{colorLabel(candidate.color)}</dd>
+            </div>
+            <div className="detail-row">
+              <dt>大小</dt>
+              <dd>{candidate.scale.toFixed(1)}×</dd>
+            </div>
+            <div className="detail-row">
+              <dt>变体</dt>
+              <dd>{(candidate.variant || 0) + 1}</dd>
+            </div>
+          </dl>
+          <div className="detail-actions">
+            <button className="prop-btn prop-place" onClick={() => onPlace(candidate)}>
+              放到主角脚下 · Place
+            </button>
+            <button className="prop-btn" onClick={onClose}>取消 · Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function HelpModal({ onClose }) {

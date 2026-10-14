@@ -174,6 +174,32 @@ export function variantCount(type) {
   return list ? list.length : 1
 }
 
+/**
+ * 取某类型的预览图路径（候选卡片详情用）
+ * 静态图取 variant（颜色词命中优先）；动物取第一帧；鱼取随机一条的固定帧
+ */
+export function getPreviewSrc(type, colorWord = '', variant = 0) {
+  const folders = ANIMALS[type]
+  if (folders) {
+    let folder = null
+    const colorMap = ANIMAL_COLOR[type]
+    if (colorMap && colorMap[colorWord]) folder = colorMap[colorWord]
+    else if (colorWord) folder = folders[hashWord(colorWord) % folders.length]
+    else folder = folders[(variant || 0) % folders.length]
+    return `${SPRITE_BASE}/animals/${folder}/r00_c00.png`
+  }
+  if (type === 'fish') {
+    return `${SPRITE_BASE}/aquarium/fish_000.png`
+  }
+  const list = SPRITES[type]
+  if (!list || list.length === 0) return null
+  const colorMap = COLOR_VARIANT[type]
+  let idx = variant || 0
+  if (colorMap && colorMap[colorWord] !== undefined) idx = colorMap[colorWord]
+  else idx = idx % list.length
+  return `${SPRITE_BASE}/${list[idx]}`
+}
+
 // ---------- 主角 Abigail ----------
 export const PLAYER = {
   rows: { down: 'r00', right: 'r01', up: 'r02', left: 'r01' }, // 左 = 右镜像

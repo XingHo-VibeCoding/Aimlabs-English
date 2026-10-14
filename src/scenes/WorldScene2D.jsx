@@ -176,6 +176,7 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
   const stateRef = useRef(null)
   const fontScaleRef = useRef(fontScale)
   fontScaleRef.current = fontScale
+  const padRef = useRef(null) // 触屏方向键容器
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -231,6 +232,37 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
 
+    // 触屏方向键（D-pad）：每个方向一个独立虚拟键，按住持续走、松手停
+    // 用 touchstart/touchend，配合 e.preventDefault 避免触发页面滚动/缩放
+    const PAD_KEYS = {
+      'pad-up': ['w', 'arrowup'],
+      'pad-down': ['s', 'arrowdown'],
+      'pad-left': ['a', 'arrowleft'],
+      'pad-right': ['d', 'arrowright'],
+    }
+    function onPadStart(e) {
+      const btn = e.target.closest('[data-dir]')
+      if (!btn) return
+      e.preventDefault()
+      const dir = btn.getAttribute('data-dir')
+      const keys = PAD_KEYS['pad-' + dir] || []
+      keys.forEach((k) => (state.keys[k] = true))
+    }
+    function onPadEnd(e) {
+      const btn = e.target.closest('[data-dir]')
+      if (!btn) return
+      e.preventDefault()
+      const dir = btn.getAttribute('data-dir')
+      const keys = PAD_KEYS['pad-' + dir] || []
+      keys.forEach((k) => (state.keys[k] = false))
+    }
+    const pad = padRef.current
+    if (pad) {
+      pad.addEventListener('touchstart', onPadStart, { passive: false })
+      pad.addEventListener('touchend', onPadEnd, { passive: false })
+      pad.addEventListener('touchcancel', onPadEnd, { passive: false })
+    }
+
     // 点击选中：把屏幕坐标换算成世界坐标（考虑摄像机和缩放）
     function onClick(e) {
       const rect = canvas.getBoundingClientRect()
@@ -248,7 +280,7 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
       state.selected = hit
       if (hit) state.selectedAt = performance.now() // 选中瞬间，触发回弹
       if (sceneRef.current && sceneRef.current.onSelectChange) {
-        sceneRef.current.onSelectChange(hit ? { ...hit.userData } : null)
+        sceneRef.current.onSelectChange(hit ? { ...hit.userData, x: hit.x, y: hit.y } : null)
       }
     }
     canvas.addEventListener('click', onClick)
@@ -359,6 +391,22 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
             y: o.y,
             scale: o.scale,
           }))
+        },
+        // 返回主角当前世界坐标（触屏放置「放到主角脚下」用）
+        getPlayerPos() {
+          return { x: state.player.x, y: state.player.y }
+        },
+        // 微调选中物体的位置（属性面板上下左右按钮用，单位：格）
+        moveSelected(dx, dy) {
+          if (!state.selected) return null
+          const obj = state.selected
+          obj.x = Math.max(0.5, Math.min(MAP_W - 0.5, obj.x + dx))
+          obj.y = Math.max(0.5, Math.min(MAP_H - 0.5, obj.y + dy))
+          state.confirmAt = performance.now()
+          if (sceneRef.current.onSelectChange) {
+            sceneRef.current.onSelectChange({ ...obj.userData, x: obj.x, y: obj.y })
+          }
+          return { x: obj.x, y: obj.y }
         },
       }
     }
@@ -533,8 +581,24 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
       window.removeEventListener('keyup', onKeyUp)
       canvas.removeEventListener('click', onClick)
       canvas.removeEventListener('wheel', onWheel)
+      if (pad) {
+        pad.removeEventListener('touchstart', onPadStart)
+        pad.removeEventListener('touchend', onPadEnd)
+        pad.removeEventListener('touchcancel', onPadEnd)
+      }
     }
   }, [sceneRef])
 
-  return <canvas ref={canvasRef} className="world-canvas" />
+  return (
+    <div className="world-stage">
+      <canvas ref={canvasRef} className="world-canvas" />
+      {/* 触屏方向键：窄屏显示，桌面端隐藏 */}
+      <div className="world-dpad" ref={padRef}>
+        <button className="dpad-btn dpad-up" data-dir="up" aria-label="上">▲</button>
+        <button className="dpad-btn dpad-left" data-dir="left" aria-label="左">◀</button>
+        <button className="dpad-btn dpad-right" data-dir="right" aria-label="右">▶</button>
+        <button className="dpad-btn dpad-down" data-dir="down" aria-label="下">▼</button>
+      </div>
+    </div>
+  )
 }
