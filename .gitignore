@@ -14,6 +14,9 @@ dist/
 .DS_Store
 Thumbs.db
 
+# 本地开发临时日志
+vite_check.log
+
 # 星露谷解包素材（版权归 ConcernedApe，仅本地开发占位 + LoRA 训练数据，绝不提交分发）
 assets/sprites/
 public/sprites/
