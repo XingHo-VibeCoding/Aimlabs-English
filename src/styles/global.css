@@ -311,6 +311,81 @@ body.resizing {
   gap: 8px;
 }
 
+/* 输入框外层容器：为首次引导气泡提供相对定位锚点 */
+.editor-input-wrap {
+  position: relative;
+}
+
+/* 首次引导气泡：箭头指向下方输入框，教新人第一步 */
+.onboard-tip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 14px);
+  z-index: 30;
+  background: #1f2937;
+  color: #fff;
+  padding: 14px 16px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  animation: onboard-in 0.25s ease-out;
+}
+.onboard-arrow {
+  position: absolute;
+  left: 40px;
+  bottom: -10px;
+  color: #1f2937;
+  font-size: 20px;
+  line-height: 1;
+}
+.onboard-close {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.onboard-close:hover { color: #fff; }
+.onboard-title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffd54f;
+}
+.onboard-text {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #e2e8f0;
+}
+.onboard-text code {
+  background: #334155;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #ffd54f;
+  font-size: 12px;
+}
+.onboard-btn {
+  font-size: 13px;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+}
+.onboard-btn:hover { background: #1d4ed8; }
+
+@keyframes onboard-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .editor-input-field {
   flex: 1;
   padding: 10px 12px;
@@ -1440,12 +1515,12 @@ body.resizing {
     padding: 12px;
   }
 
-  /* 触屏方向键：画布左下角十字布局 */
+  /* 触屏方向键：画布左下角十字布局（4 列：方向键占 3 列，互动按钮占第 4 列） */
   .world-dpad {
     display: grid;
-    grid-template-columns: repeat(3, 52px);
+    grid-template-columns: repeat(4, 52px);
     grid-template-rows: repeat(3, 52px);
-    gap: 2px;
+    gap: 6px;
     position: absolute;
     left: 16px;
     bottom: 16px;
@@ -1475,4 +1550,37 @@ body.resizing {
   .dpad-left { grid-column: 1; grid-row: 2; }
   .dpad-right { grid-column: 3; grid-row: 2; }
   .dpad-down { grid-column: 2; grid-row: 3; }
+  /* 互动按钮：占第 4 列、垂直居中，替换键盘 E 键，手机端也能触发互动 */
+  .dpad-act {
+    grid-column: 4;
+    grid-row: 2;
+    width: 52px;
+    height: 52px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(37, 99, 235, 0.7);
+    color: #fff;
+    font-size: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .dpad-act:active {
+    background: rgba(37, 99, 235, 0.95);
+  }
+
+  /* 手机端首次引导：侧栏默认收起会把气泡藏住，改成固定浮层贴在屏幕上沿 */
+  .onboard-tip {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: auto;
+    top: 60px;
+    z-index: 60;
+  }
+  .onboard-arrow { display: none; }
 }

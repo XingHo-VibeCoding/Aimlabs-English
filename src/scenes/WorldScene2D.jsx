@@ -241,9 +241,14 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
       'pad-right': ['d', 'arrowright'],
     }
     function onPadStart(e) {
-      const btn = e.target.closest('[data-dir]')
+      const btn = e.target.closest('[data-dir], [data-action]')
       if (!btn) return
       e.preventDefault()
+      // 互动按钮：点按触发互动（替代键盘 E 键）
+      if (btn.getAttribute('data-action') === 'interact') {
+        if (state.nearInteractable) toggleInteractable(state.nearInteractable)
+        return
+      }
       const dir = btn.getAttribute('data-dir')
       const keys = PAD_KEYS['pad-' + dir] || []
       keys.forEach((k) => (state.keys[k] = true))
@@ -256,11 +261,18 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
       const keys = PAD_KEYS['pad-' + dir] || []
       keys.forEach((k) => (state.keys[k] = false))
     }
+    // 桌面端鼠标点按互动按钮的兜底（触屏走 touchstart，鼠标走 click）
+    function onPadClick(e) {
+      const btn = e.target.closest('[data-action="interact"]')
+      if (!btn) return
+      if (state.nearInteractable) toggleInteractable(state.nearInteractable)
+    }
     const pad = padRef.current
     if (pad) {
       pad.addEventListener('touchstart', onPadStart, { passive: false })
       pad.addEventListener('touchend', onPadEnd, { passive: false })
       pad.addEventListener('touchcancel', onPadEnd, { passive: false })
+      pad.addEventListener('click', onPadClick)
     }
 
     // 点击选中：把屏幕坐标换算成世界坐标（考虑摄像机和缩放）
@@ -569,7 +581,8 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
         ctx.font = `bold ${Math.round(14 * fs)}px system-ui, sans-serif`
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
-        ctx.fillText('E', ix + TILE / 2, bubbleY)
+        // 不显示字母 E（手机端无实体 E 键），改为通用「互动」手势图标
+        ctx.fillText('🙌', ix + TILE / 2, bubbleY)
       }
       ctx.restore()
     }
@@ -585,6 +598,7 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
         pad.removeEventListener('touchstart', onPadStart)
         pad.removeEventListener('touchend', onPadEnd)
         pad.removeEventListener('touchcancel', onPadEnd)
+        pad.removeEventListener('click', onPadClick)
       }
     }
   }, [sceneRef])
@@ -592,12 +606,13 @@ export default function WorldScene2D({ sceneRef, fontScale = 1 }) {
   return (
     <div className="world-stage">
       <canvas ref={canvasRef} className="world-canvas" />
-      {/* 触屏方向键：窄屏显示，桌面端隐藏 */}
+      {/* 触屏方向键：窄屏显示，桌面端隐藏；第五个「互动」按钮替换键盘 E 键 */}
       <div className="world-dpad" ref={padRef}>
         <button className="dpad-btn dpad-up" data-dir="up" aria-label="上">▲</button>
         <button className="dpad-btn dpad-left" data-dir="left" aria-label="左">◀</button>
         <button className="dpad-btn dpad-right" data-dir="right" aria-label="右">▶</button>
         <button className="dpad-btn dpad-down" data-dir="down" aria-label="下">▼</button>
+        <button className="dpad-btn dpad-act" data-action="interact" aria-label="互动">🙌</button>
       </div>
     </div>
   )

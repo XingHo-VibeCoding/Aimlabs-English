@@ -8,6 +8,9 @@ import { getPreviewSrc } from './sprites/spriteRegistry.js'
 import { writeSave } from './utils/saveStorage.js'
 import { readFontScale, writeFontScale, FONT_SCALE_MIN, FONT_SCALE_MAX } from './utils/fontScale.js'
 
+// 首次引导的 localStorage 标记：看过一次就不再弹
+const ONBOARD_KEY = 'wordworld_onboard_done'
+
 export default function App() {
   const [fontScale, setFontScale] = useState(readFontScale)
 
@@ -53,6 +56,10 @@ function EditorPage({ fontScale, onFontScale }) {
   const [isFullscreen, setIsFullscreen] = useState(false) // 是否处于浏览器全屏
   const [sideOpen, setSideOpen] = useState(false) // 手机端：底部抽屉是否展开（桌面端恒显示，不用它）
   const [detail, setDetail] = useState(null) // 候选卡片详情：当前查看的候选对象（点卡片弹出）
+  const [showOnboard, setShowOnboard] = useState(() => {
+    // 首次引导：只在第一次进编辑器时显示一次，看过就写标记不再弹
+    try { return localStorage.getItem(ONBOARD_KEY) !== 'done' } catch { return true }
+  })
 
   // 一键全屏：进入/退出浏览器全屏（用原生 Fullscreen API，零依赖）
   function toggleFullscreen() {
@@ -165,6 +172,12 @@ function EditorPage({ fontScale, onFontScale }) {
     }
   }
 
+  // 关闭首次引导：写标记，之后不再弹
+  function dismissOnboard() {
+    setShowOnboard(false)
+    try { localStorage.setItem(ONBOARD_KEY, 'done') } catch {}
+  }
+
   // 真保存：把场景里的物体写进 localStorage，弹「已保存✓」提醒，2 秒后自动消失
   function handleSave() {
     if (!sceneRef.current) {
@@ -274,17 +287,30 @@ function EditorPage({ fontScale, onFontScale }) {
 
         <div className={"editor-side" + (sideOpen ? ' open' : '')} style={{ width: sideWidth }}>
           <span className="editor-hint">WASD/方向键移动 · 输入英文造物 · 点击物体编辑</span>
-          <div className="editor-input">
-            <input
-              className="editor-input-field"
-              placeholder="Type in English… 例如 a red tree"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
-            />
-            <button className="editor-input-btn" onClick={handleGenerate}>
-              生成 · Generate
-            </button>
+          <div className="editor-input-wrap">
+            <div className="editor-input">
+              <input
+                className="editor-input-field"
+                placeholder="Type in English… 例如 a red tree"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+              />
+              <button className="editor-input-btn" onClick={handleGenerate}>
+                生成 · Generate
+              </button>
+            </div>
+
+            {/* 首次引导：箭头指向输入框，教新人第一步该做什么 */}
+            {showOnboard && (
+              <div className="onboard-tip">
+                <button className="onboard-close" onClick={dismissOnboard} aria-label="关闭">×</button>
+                <span className="onboard-arrow">▼</span>
+                <p className="onboard-title">从这里开始 👇</p>
+                <p className="onboard-text">在框里输入英文，比如 <code>a red tree</code>，再点「生成」</p>
+                <button className="onboard-btn" onClick={dismissOnboard}>知道了 · Got it</button>
+              </div>
+            )}
           </div>
 
           {message && <div className="editor-message">{message}</div>}
